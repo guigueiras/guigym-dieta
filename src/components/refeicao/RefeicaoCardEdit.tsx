@@ -1,11 +1,13 @@
-import { memo, useMemo, useEffect } from 'react';
+import { memo, useMemo, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { GripVertical, Plus } from 'lucide-react-native';
+import { GripVertical, Plus, MoreVertical } from 'lucide-react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, withSpring, Easing,
 } from 'react-native-reanimated';
 import { colors, spacing } from '@/theme/colors';
-import { useEditRefeicao } from '@/stores/useEditDietaStore';
+import {
+  useEditRefeicao, useEditDietaStore,
+} from '@/stores/useEditDietaStore';
 import { useAlimentosStore } from '@/stores/useAlimentosStore';
 import { useShallow } from 'zustand/react/shallow';
 import { calcMacros, somarMacros } from '@/utils/macros';
@@ -14,6 +16,8 @@ import { AlimentoLinhaEdit } from './AlimentoLinhaEdit';
 import { EmptyRefeicao } from './EmptyRefeicao';
 import { AnimatedListItem } from '@/components/ui/AnimatedListItem';
 import { Highlight } from '@/components/ui/Highlight';
+import { RefeicaoActionsMenu } from './RefeicaoActionsMenu';
+import { RenomearRefeicaoModal } from './RenomearRefeicaoModal';
 import { hap } from '@/utils/haptics';
 import type { DiaSemana } from '@/types';
 
@@ -31,6 +35,16 @@ function RefeicaoCardEditBase({
 }: Props) {
   const ref = useEditRefeicao(dia, refeicaoId);
   const alimentosBase = useAlimentosStore(useShallow((s) => s.byId));
+
+  // Quantidade de refeições no dia — pra decidir se "Excluir" fica habilitado.
+  const totalRefeicoesDoDia = useEditDietaStore(
+    (s) => s.dietaEditada?.dias.find((d) => d.nome === dia)?.refeicoes.length ?? 0
+  );
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renomearOpen, setRenomearOpen] = useState(false);
+  const menuAnchorRef = useRef<View>(null);
+  const [menuAnchorPos, setMenuAnchorPos] = useState<{ x: number; y: number } | null>(null);
 
   const totaisRefeicao = useMemo(() => {
     if (!ref) return { proteina: 0, carbo: 0, gordura: 0, calorias: 0 };
@@ -69,62 +83,102 @@ function RefeicaoCardEditBase({
     transform: [{ scale: 1 + dragProgress.value * 0.15 }],
   }));
 
+  const abrirMenu = () => {
+    menuAnchorRef.current?.measureInWindow((x, y, w, h) => {
+      setMenuAnchorPos({ x: x + w, y: y + h });
+      setMenuOpen(true);
+      hap.tap();
+    });
+  };
+
   if (!ref) return null;
   const vazia = ref.alimentos.length === 0;
+  const podeExcluir = totalRefeicoesDoDia > 1;
 
   return (
-    <Animated.View style={[styles.card, cardAnimStyle]}>
-      <View style={styles.headerRow}>
-        <Pressable
-          onLongPress={onLongPressDrag}
-          delayLongPress={150}
-          hitSlop={10}
-          style={styles.dragHandle}
-        >
-          <Animated.View style={handleAnimStyle}>
-            <GripVertical
-              size={18}
-              color={isDragging ? colors.primary : colors.textMuted}
-              strokeWidth={2.2}
-            />
-          </Animated.View>
-        </Pressable>
+    <>
+      <Animated.View style={[styles.card, cardAnimStyle]}>
+        <View style={styles.headerRow}>
+          <Pressable
+            onLongPress={onLongPressDrag}
+            delayLongPress={150}
+            hitSlop={10}
+            style={styles.dragHandle}
+            accessibilityLabel="Arrastar para reordenar"
+          >
+            <Animated.View style={handleAnimStyle}>
+              <GripVertical
+                size={18}
+                color={isDragging ? colors.primary : colors.textMuted}
+                strokeWidth={2.2}
+              />
+            </Animated.View>
+          </Pressable>
 
-        <Text style={styles.titulo} numberOfLines={1}>{ref.nome}</Text>
+          <Text style={styles.titulo} numberOfLines={1}>{ref.nome}</Text>
 
-        <Pressable
-          onPress={onAdicionarAlimento}
-          hitSlop={10}
-          style={({ pressed }) => [styles.addBtn, pressed && styles.addBtnPressed]}
-          accessibilityLabel="Adicionar alimento"
-        >
-          <Plus size={20} color={colors.primary} strokeWidth={2.4} />
-        </Pressable>
-      </View>
+          <Pressable
+            ref={menuAnchorRef}
+            onPress={abrirMenu}
+            hitSlop={8}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPressed]}
+            accessibilityLabel="Mais opções"
+          >
+            <MoreVertical size={18} color={colors.textSecondary} strokeWidth={2} />
+          </Pressable>
 
-      {vazia ? (
-        <EmptyRefeicao />
-      ) : (
-        <>
-          <View style={styles.alimentos}>
-            {ref.alimentos.map((a) => (
-              <AnimatedListItem key={a.id}>
-                <Highlight highlightKey={highlightAlimentoId === a.id ? a.id : undefined}>
-                  <AlimentoLinhaEdit
-                    dia={dia}
-                    refeicaoId={refeicaoId}
-                    alimentoNaRefId={a.id}
-                    alimentoId={a.alimentoId}
-                    quantidade={a.quantidade}
-                  />
-                </Highlight>
-              </AnimatedListItem>
-            ))}
-          </View>
-          <MacrosBar macros={totaisRefeicao} />
-        </>
-      )}
-    </Animated.View>
+          <Pressable
+            onPress={onAdicionarAlimento}
+            hitSlop={8}
+            style={({ pressed }) => [styles.iconBtn, pressed && styles.iconBtnPlusPressed]}
+            accessibilityLabel="Adicionar alimento"
+          >
+            <Plus size={20} color={colors.primary} strokeWidth={2.4} />
+          </Pressable>
+        </View>
+
+        {vazia ? (
+          <EmptyRefeicao />
+        ) : (
+          <>
+            <View style={styles.alimentos}>
+              {ref.alimentos.map((a) => (
+                <AnimatedListItem key={a.id}>
+                  <Highlight highlightKey={highlightAlimentoId === a.id ? a.id : undefined}>
+                    <AlimentoLinhaEdit
+                      dia={dia}
+                      refeicaoId={refeicaoId}
+                      alimentoNaRefId={a.id}
+                      alimentoId={a.alimentoId}
+                      quantidade={a.quantidade}
+                    />
+                  </Highlight>
+                </AnimatedListItem>
+              ))}
+            </View>
+            <MacrosBar macros={totaisRefeicao} />
+          </>
+        )}
+      </Animated.View>
+
+      <RefeicaoActionsMenu
+        visible={menuOpen}
+        anchor={menuAnchorPos}
+        dia={dia}
+        refeicaoId={refeicaoId}
+        refeicaoNome={ref.nome}
+        podeExcluir={podeExcluir}
+        onClose={() => setMenuOpen(false)}
+        onRenomear={() => setRenomearOpen(true)}
+      />
+
+      <RenomearRefeicaoModal
+        visible={renomearOpen}
+        onClose={() => setRenomearOpen(false)}
+        dia={dia}
+        refeicaoId={refeicaoId}
+      />
+    </>
   );
 }
 
@@ -144,10 +198,28 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 1,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   dragHandle: { padding: 4, marginLeft: -4 },
-  titulo: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
-  addBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  addBtnPressed: { backgroundColor: colors.primaryLight },
+  titulo: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.3,
+    marginRight: 4,
+  },
+  iconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnPressed: { backgroundColor: colors.surfaceAlt },
+  iconBtnPlusPressed: { backgroundColor: colors.primaryLight },
   alimentos: { gap: spacing.sm },
 });

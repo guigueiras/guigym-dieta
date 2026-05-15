@@ -12,8 +12,9 @@ interface Props {
   onChange: (d: DiaSemana) => void;
 }
 
-const TAB_HEIGHT = 38;
-const TAB_GAP = spacing.sm;
+const TAB_HEIGHT = 34;
+const TAB_GAP = 4;
+const TAB_PADDING_H = 14;
 
 interface TabLayout { x: number; w: number }
 
@@ -23,20 +24,22 @@ export function DiasTabs({ valor, onChange }: Props) {
 
   const indicatorX = useSharedValue(0);
   const indicatorW = useSharedValue(0);
+  const indicatorOpacity = useSharedValue(0);
 
   useEffect(() => {
     const l = layouts[valor];
     if (!l) return;
 
     const isFirstReveal = indicatorW.value === 0;
-    const opts = { damping: 22, stiffness: 240, mass: 0.8 };
+    const springOpts = { damping: 24, stiffness: 240, mass: 0.7 };
 
     if (isFirstReveal) {
       indicatorX.value = l.x;
       indicatorW.value = l.w;
+      indicatorOpacity.value = withTiming(1, { duration: 180 });
     } else {
-      indicatorX.value = withSpring(l.x, opts);
-      indicatorW.value = withSpring(l.w, opts);
+      indicatorX.value = withSpring(l.x, springOpts);
+      indicatorW.value = withSpring(l.w, springOpts);
     }
 
     scrollRef.current?.scrollTo({
@@ -48,6 +51,7 @@ export function DiasTabs({ valor, onChange }: Props) {
   const indicatorStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: indicatorX.value }],
     width: indicatorW.value,
+    opacity: indicatorOpacity.value,
   }));
 
   const handleLayout = (key: DiaSemana) => (e: LayoutChangeEvent) => {
@@ -98,12 +102,12 @@ function DiaTab({ label, ativo, onPress, onLayout }: DiaTabProps) {
 
   useEffect(() => {
     colorProgress.value = withTiming(ativo ? 1 : 0, {
-      duration: 220, easing: Easing.out(Easing.quad),
+      duration: 200, easing: Easing.out(Easing.quad),
     });
   }, [ativo]);
 
   const textStyle = useAnimatedStyle(() => ({
-    color: colorProgress.value >= 0.5 ? '#FFFFFF' : colors.text,
+    color: colorProgress.value >= 0.5 ? '#FFFFFF' : colors.textSecondary,
     transform: [{ scale: scale.value }],
   }));
 
@@ -113,10 +117,15 @@ function DiaTab({ label, ativo, onPress, onLayout }: DiaTabProps) {
       onLayout={onLayout}
       onPressIn={() => { scale.value = withTiming(0.94, { duration: 90 }); }}
       onPressOut={() => { scale.value = withSpring(1, { damping: 14, stiffness: 240 }); }}
-      hitSlop={6}
+      hitSlop={{ top: 8, bottom: 8, left: 2, right: 2 }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: ativo }}
+      accessibilityLabel={label}
       style={styles.tab}
     >
-      <Animated.Text style={[styles.tabText, textStyle]}>{label}</Animated.Text>
+      <Animated.Text style={[styles.tabText, textStyle]} allowFontScaling={false}>
+        {label}
+      </Animated.Text>
     </Pressable>
   );
 }
@@ -140,19 +149,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: TAB_HEIGHT / 2,
     shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.16,
+    shadowRadius: 6,
     elevation: 2,
   },
   tab: {
     height: TAB_HEIGHT,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: TAB_PADDING_H,
     borderRadius: TAB_HEIGHT / 2,
-    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 76,
+    backgroundColor: 'transparent',
   },
   tabText: {
     fontSize: 14,

@@ -1,44 +1,28 @@
-import { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { useRef, useEffect } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ChevronLeft } from 'lucide-react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { colors, spacing } from '@/theme/colors';
-import { Button } from '@/components/ui/Button';
 import { QuantidadeInputGrande, type QuantidadeInputGrandeRef } from './QuantidadeInputGrande';
-import { AnimatedNumber } from '@/components/ui/AnimatedNumber';
 import { calcMacros } from '@/utils/macros';
-import { hap } from '@/utils/haptics';
 import type { Alimento } from '@/types';
 
 interface Props {
   alimento: Alimento;
+  quantidade: number;
+  onChangeQuantidade: (q: number) => void;
   onVoltar: () => void;
-  onConfirmar: (quantidade: number) => void;
   visible: boolean;
 }
 
-const QTD_INICIAL = 100;
-
 export function DetalheAlimentoQuantidade({
-  alimento, onVoltar, onConfirmar, visible,
+  alimento, quantidade, onChangeQuantidade, onVoltar, visible,
 }: Props) {
-  const [quantidade, setQuantidade] = useState(QTD_INICIAL);
   const inputRef = useRef<QuantidadeInputGrandeRef>(null);
-
-  useEffect(() => {
-    setQuantidade(QTD_INICIAL);
-  }, [alimento.id]);
 
   const macrosBase = calcMacros(alimento, 100);
   const macrosTotal = calcMacros(alimento, quantidade);
-
-  const confirmar = () => {
-    if (quantidade <= 0) {
-      hap.error();
-      return;
-    }
-    onConfirmar(quantidade);
-  };
 
   return (
     <View style={styles.wrap}>
@@ -47,6 +31,7 @@ export function DetalheAlimentoQuantidade({
           onPress={onVoltar}
           hitSlop={12}
           style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+          accessibilityLabel="Voltar para a lista"
         >
           <ChevronLeft size={20} color={colors.primary} strokeWidth={2.4} />
           <Text style={styles.backText}>Voltar</Text>
@@ -57,10 +42,9 @@ export function DetalheAlimentoQuantidade({
         <View style={styles.headerSpacer} />
       </View>
 
-      <ScrollView
+      <BottomSheetScrollView
+        style={styles.scrollFlex}
         contentContainerStyle={styles.scroll}
-        bounces={false}
-        overScrollMode="never"
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -80,7 +64,7 @@ export function DetalheAlimentoQuantidade({
           <QuantidadeInputGrande
             ref={inputRef}
             value={quantidade}
-            onCommit={setQuantidade}
+            onCommit={onChangeQuantidade}
             min={1}
             max={9999}
             step={5}
@@ -94,18 +78,12 @@ export function DetalheAlimentoQuantidade({
             Total com <Text style={styles.cardTituloTotalBold}>{quantidade}{alimento.unidade}</Text>:
           </Text>
           <View style={styles.macrosRow}>
-            <MacroColunaAnim label="Proteína" valor={macrosTotal.proteina} cor={colors.macroProtein} />
-            <MacroColunaAnim label="Carbo"    valor={macrosTotal.carbo}    cor={colors.macroCarb} />
-            <MacroColunaAnim label="Gordura"  valor={macrosTotal.gordura}  cor={colors.macroFat} />
+            <MacroColuna label="Proteína" valor={macrosTotal.proteina} cor={colors.macroProtein} />
+            <MacroColuna label="Carbo"    valor={macrosTotal.carbo}    cor={colors.macroCarb} />
+            <MacroColuna label="Gordura"  valor={macrosTotal.gordura}  cor={colors.macroFat} />
           </View>
         </Animated.View>
-      </ScrollView>
-
-      <View style={styles.footer}>
-        <Button variant="primary" onPress={confirmar} disabled={quantidade <= 0}>
-          Adicionar
-        </Button>
-      </View>
+      </BottomSheetScrollView>
     </View>
   );
 }
@@ -119,26 +97,13 @@ function MacroColuna({ label, valor, cor }: { label: string; valor: number; cor:
   );
 }
 
-function MacroColunaAnim({ label, valor, cor }: { label: string; valor: number; cor: string }) {
-  return (
-    <View style={styles.macroCol}>
-      <Text style={styles.macroLabel}>{label}</Text>
-      <AnimatedNumber
-        value={valor}
-        decimals={1}
-        suffix="g"
-        style={[styles.macroValor, { color: cor }]}
-      />
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   wrap: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: spacing.screenH,
     paddingTop: spacing.xs,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
@@ -162,10 +127,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   headerSpacer: { width: 64 },
+  scrollFlex: { flex: 1 },
   scroll: {
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
-    gap: spacing.lg,
+    paddingHorizontal: spacing.screenH,
+    paddingTop: spacing.sm,
+    paddingBottom: 100,
+    gap: spacing.md,
   },
   cardBase: {
     backgroundColor: colors.surface,
@@ -175,19 +142,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
-  cardTitulo: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  inputBlock: {
-    gap: spacing.sm,
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
+  cardTitulo: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  inputBlock: { gap: spacing.sm },
+  inputLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
   cardTotal: {
     backgroundColor: colors.successLight,
     borderRadius: 14,
@@ -196,39 +153,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#A7F3D0',
   },
-  cardTituloTotal: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.successText,
-  },
-  cardTituloTotalBold: {
-    fontWeight: '800',
-    color: colors.successText,
-  },
-  macrosRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  macroCol: {
-    alignItems: 'center',
-    gap: 4,
-    minWidth: 72,
-  },
-  macroLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  macroValor: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  footer: {
-    paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: '#FFFFFF',
-  },
+  cardTituloTotal: { fontSize: 13, fontWeight: '600', color: colors.successText },
+  cardTituloTotalBold: { fontWeight: '800', color: colors.successText },
+  macrosRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  macroCol: { alignItems: 'center', gap: 4, minWidth: 72 },
+  macroLabel: { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },
+  macroValor: { fontSize: 18, fontWeight: '700', letterSpacing: -0.2 },
 });

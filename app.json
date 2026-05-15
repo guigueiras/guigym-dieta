@@ -7,7 +7,13 @@
     "icon": "./assets/icon.png",
     "scheme": "guigym",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -15,7 +21,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.guilherme.guigymdieta"
+      "bundleIdentifier": "com.guilherme.guigymdieta",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -49,6 +58,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "ce24c427-3d7e-4b36-b8f4-a169d27d5eda"
+      }
     }
   }
 }

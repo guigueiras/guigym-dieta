@@ -1,6 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useMemo } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { colors, spacing } from '@/theme/colors';
 import { useEditDietaStore } from '@/stores/useEditDietaStore';
 import { useAlimentosStore } from '@/stores/useAlimentosStore';
@@ -13,26 +12,26 @@ interface Props { dia: DiaSemana; }
 export function TotalDiaFooterEdit({ dia }: Props) {
   const insets = useSafeAreaInsets();
 
-  const itensDoDia = useEditDietaStore(
-    useShallow((s) => {
-      const dia_ = s.dietaEditada?.dias.find((d) => d.nome === dia);
-      if (!dia_) return [] as Array<{ alimentoId: string; quantidade: number }>;
-      const out: Array<{ alimentoId: string; quantidade: number }> = [];
-      for (const r of dia_.refeicoes) {
-        for (const a of r.alimentos) out.push({ alimentoId: a.alimentoId, quantidade: a.quantidade });
-      }
-      return out;
-    })
+  // Seletor retorna a referência do array de refeições do dia.
+  // Como a store atualiza imutavelmente, a referência muda apenas quando
+  // algo realmente muda nesse dia. Sem objetos literais → snapshot estável.
+  const refeicoes = useEditDietaStore(
+    (s) => s.dietaEditada?.dias.find((d) => d.nome === dia)?.refeicoes
   );
 
-  const alimentosBase = useAlimentosStore(useShallow((s) => s.byId));
+  const alimentosBase = useAlimentosStore((s) => s.byId);
 
   const total = useMemo(() => {
-    const lista = itensDoDia
-      .map((it) => alimentosBase[it.alimentoId] ? calcMacros(alimentosBase[it.alimentoId], it.quantidade) : null)
-      .filter(Boolean) as ReturnType<typeof calcMacros>[];
+    if (!refeicoes) return { proteina: 0, carbo: 0, gordura: 0, calorias: 0 };
+    const lista: ReturnType<typeof calcMacros>[] = [];
+    for (const r of refeicoes) {
+      for (const a of r.alimentos) {
+        const base = alimentosBase[a.alimentoId];
+        if (base) lista.push(calcMacros(base, a.quantidade));
+      }
+    }
     return somarMacros(lista);
-  }, [itensDoDia, alimentosBase]);
+  }, [refeicoes, alimentosBase]);
 
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>

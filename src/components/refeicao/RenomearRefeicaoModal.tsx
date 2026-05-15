@@ -1,68 +1,52 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Keyboard } from 'react-native';
 import { colors, radii, spacing } from '@/theme/colors';
 import { Button } from '@/components/ui/Button';
 import { ResponsiveModal } from '@/components/ui/ResponsiveModal';
-import { TipoDietaSelect } from './TipoDietaSelect';
-import { useDietasActions, useDieta } from '@/stores/useDietasStore';
-import type { TipoDieta } from '@/types';
+import { useEditActions, useEditRefeicao } from '@/stores/useEditDietaStore';
+import type { DiaSemana } from '@/types';
 import { hap } from '@/utils/haptics';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
-  modo?: 'criar' | 'editar';
-  dietaId?: string;
+  dia: DiaSemana;
+  refeicaoId: string | null;
 }
 
-export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Props) {
-  const dietaExistente = useDieta(dietaId);
-  const { criar, renomear } = useDietasActions();
+export function RenomearRefeicaoModal({ visible, onClose, dia, refeicaoId }: Props) {
+  const refeicao = useEditRefeicao(dia, refeicaoId ?? '');
+  const { renameRefeicao } = useEditActions();
 
   const [nome, setNome] = useState('');
-  const [tipo, setTipo] = useState<TipoDieta>('Ganho de massa');
-  const [salvando, setSalvando] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (!visible) return;
-    if (modo === 'editar' && dietaExistente) {
-      setNome(dietaExistente.nome);
-      setTipo(dietaExistente.tipo);
-    } else {
-      setNome('');
-      setTipo('Ganho de massa');
-    }
-    const t = setTimeout(() => inputRef.current?.focus(), 260);
+    setNome(refeicao?.nome ?? '');
+    const t = setTimeout(() => {
+      inputRef.current?.focus();
+      // Seleciona o texto inteiro pra o usuário poder digitar por cima
+      // (truque iOS: focar e em seguida pedir setSelection via setNativeProps).
+    }, 260);
     return () => clearTimeout(t);
-  }, [visible, modo, dietaExistente]);
+  }, [visible, refeicao?.nome]);
 
-  const podeConfirmar = nome.trim().length > 0 && !salvando;
+  const podeConfirmar = nome.trim().length > 0 && nome.trim() !== refeicao?.nome;
 
-  const confirmar = async () => {
-    if (!podeConfirmar) return;
+  const confirmar = () => {
+    if (!podeConfirmar || !refeicaoId) return;
     Keyboard.dismiss();
-    setSalvando(true);
-    try {
-      if (modo === 'editar' && dietaId) {
-        await renomear(dietaId, nome.trim(), tipo);
-      } else {
-        await criar(nome.trim(), tipo);
-      }
-      hap.add();
-      onClose();
-    } catch {
-      hap.error();
-    } finally {
-      setSalvando(false);
-    }
+    renameRefeicao(dia, refeicaoId, nome.trim());
+    hap.add();
+    onClose();
   };
 
   return (
     <ResponsiveModal
       visible={visible}
       onClose={onClose}
-      title={modo === 'editar' ? 'Editar Dieta' : 'Nova Dieta'}
+      title="Renomear refeição"
       footerActions={
         <>
           <View style={{ flex: 1 }}>
@@ -72,35 +56,30 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
             <Button
               variant="primary"
               disabled={!podeConfirmar}
-              loading={salvando}
               onPress={confirmar}
             >
-              {modo === 'editar' ? 'Salvar' : 'Criar'}
+              Salvar
             </Button>
           </View>
         </>
       }
     >
       <View style={styles.field}>
-        <Text style={styles.label}>Nome da dieta</Text>
+        <Text style={styles.label}>Nome da refeição</Text>
         <TextInput
           ref={inputRef}
           value={nome}
           onChangeText={setNome}
-          placeholder="Ex: Bulking 2026"
+          placeholder="Ex: Pré-treino"
           placeholderTextColor={colors.textMuted}
           style={styles.input}
           returnKeyType="done"
           onSubmitEditing={confirmar}
           blurOnSubmit
-          maxLength={60}
+          maxLength={40}
           autoCapitalize="sentences"
+          selectTextOnFocus
         />
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>Tipo de dieta</Text>
-        <TipoDietaSelect value={tipo} onChange={setTipo} />
       </View>
     </ResponsiveModal>
   );

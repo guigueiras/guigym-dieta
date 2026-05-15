@@ -24,7 +24,7 @@
     "expo-splash-screen": "~31.0.13",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
-    "lucide-react-native": "^0.460.0",
+    "lucide-react-native": "^0.542.0",
     "nanoid": "^5.0.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",

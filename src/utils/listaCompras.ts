@@ -13,7 +13,16 @@ export interface ItemCompra {
   nome: string;
   categoriaId: CategoriaId;
   unidade: UnidadeMedida;
-  totalQuantidade: number;
+  /** Soma de quantidades nas refeições, no estado preparado. */
+  totalPreparado: number;
+  /**
+   * Quantidade de compra:
+   *  - Se temConversao=true: `totalPreparado / fatorPreparo` (peso CRU).
+   *  - Se temConversao=false: igual a totalPreparado.
+   */
+  totalCompra: number;
+  /** True se possuiFator E fatorPreparo é válido. */
+  temConversao: boolean;
 }
 
 export interface GrupoCompra {
@@ -21,33 +30,58 @@ export interface GrupoCompra {
   itens: ItemCompra[];
 }
 
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/**
+ * Calcula lista de compras consolidada.
+ *
+ * Fórmula:
+ *   pesoCru = pesoPreparado / fatorPreparo
+ *
+ * Fallback seguro: sem fator ou fator inválido → usa preparado direto.
+ */
 export function gerarListaCompras(
   dieta: Dieta,
   alimentosBase: Record<string, Alimento>
 ): GrupoCompra[] {
-  const totais = new Map<string, number>();
+  const totaisPreparado = new Map<string, number>();
 
   for (const dia of dieta.dias) {
     for (const refeicao of dia.refeicoes) {
       for (const item of refeicao.alimentos) {
-        const atual = totais.get(item.alimentoId) ?? 0;
-        totais.set(item.alimentoId, atual + item.quantidade);
+        const atual = totaisPreparado.get(item.alimentoId) ?? 0;
+        totaisPreparado.set(item.alimentoId, atual + item.quantidade);
       }
     }
   }
 
-  if (totais.size === 0) return [];
+  if (totaisPreparado.size === 0) return [];
 
   const itens: ItemCompra[] = [];
-  for (const [alimentoId, totalQuantidade] of totais) {
+  for (const [alimentoId, totalPrep] of totaisPreparado) {
     const base = alimentosBase[alimentoId];
     if (!base) continue;
+
+    const fatorValido =
+      base.possuiFator &&
+      base.fatorPreparo != null &&
+      Number.isFinite(base.fatorPreparo) &&
+      base.fatorPreparo > 0;
+
+    const totalCompra = fatorValido
+      ? totalPrep / (base.fatorPreparo as number)
+      : totalPrep;
+
     itens.push({
       alimentoId,
       nome: base.nome,
       categoriaId: resolveCategoria(base.categoria).id,
       unidade: base.unidade,
-      totalQuantidade: Math.round(totalQuantidade * 10) / 10,
+      totalPreparado: round1(totalPrep),
+      totalCompra: round1(totalCompra),
+      temConversao: fatorValido,
     });
   }
 
@@ -80,7 +114,13 @@ export function listaComprasParaTexto(
   for (const grupo of grupos) {
     linhas.push(`▸ ${grupo.categoria.label.toUpperCase()}`);
     for (const item of grupo.itens) {
-      linhas.push(`  • ${item.nome} — ${formatQuantidade(item.totalQuantidade, item.unidade)}`);
+      const qtdCompra = formatQuantidade(item.totalCompra, item.unidade);
+      if (item.temConversao && item.totalCompra !== item.totalPreparado) {
+        const qtdPrep = formatQuantidade(item.totalPreparado, item.unidade);
+        linhas.push(`  • ${item.nome} — ${qtdCompra} cru (≈ ${qtdPrep} preparado)`);
+      } else {
+        linhas.push(`  • ${item.nome} — ${qtdCompra}`);
+      }
     }
     linhas.push('');
   }

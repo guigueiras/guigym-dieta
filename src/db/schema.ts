@@ -7,6 +7,9 @@ export const CREATE_STATEMENTS: string[] = [
     proteina REAL NOT NULL DEFAULT 0,
     carbo REAL NOT NULL DEFAULT 0,
     gordura REAL NOT NULL DEFAULT 0,
+    fator_compra REAL,
+    fator_preparo REAL,
+    possui_fator INTEGER NOT NULL DEFAULT 0,
     criado_em INTEGER NOT NULL
   );`,
   `CREATE INDEX IF NOT EXISTS idx_alimentos_nome ON alimentos(nome);`,

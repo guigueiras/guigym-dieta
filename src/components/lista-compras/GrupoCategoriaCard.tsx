@@ -27,7 +27,9 @@ function GrupoCategoriaCardBase({ dietaId, grupo }: Props) {
               dietaId={dietaId}
               alimentoId={item.alimentoId}
               nome={item.nome}
-              quantidade={item.totalQuantidade}
+              quantidade={item.totalCompra}
+              quantidadePreparada={item.totalPreparado}
+              temConversao={item.temConversao}
               unidade={item.unidade}
             />
             {i < grupo.itens.length - 1 && <View style={styles.sep} />}

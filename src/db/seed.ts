@@ -1,35 +1,51 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { nanoid } from 'nanoid/non-secure';
+import { BASE_ALIMENTOS_V2 } from './baseAlimentos';
 
-const ALIMENTOS_BASE = [
-  { nome: 'Peito de Frango',     categoria: 'carnes',      unidade: 'g',  proteina: 31,  carbo: 0,  gordura: 3.6 },
-  { nome: 'Patinho Moído',       categoria: 'carnes',      unidade: 'g',  proteina: 21,  carbo: 0,  gordura: 7   },
-  { nome: 'Arroz Branco Cozido', categoria: 'graos',       unidade: 'g',  proteina: 2.5, carbo: 28, gordura: 0.3 },
-  { nome: 'Batata Doce Cozida',  categoria: 'tuberculos',  unidade: 'g',  proteina: 0.6, carbo: 20, gordura: 0.1 },
-  { nome: 'Aveia',               categoria: 'graos',       unidade: 'g',  proteina: 13,  carbo: 67, gordura: 7   },
-  { nome: 'Ovo Inteiro',         categoria: 'outros',      unidade: 'g',  proteina: 13,  carbo: 1,  gordura: 11  },
-  { nome: 'Banana',              categoria: 'frutas',      unidade: 'g',  proteina: 1,   carbo: 23, gordura: 0.3 },
-  { nome: 'Whey Protein',        categoria: 'outros',      unidade: 'g',  proteina: 75,  carbo: 8,  gordura: 5   },
-] as const;
-
+/**
+ * Insere a base oficial em DBs zerados (instalação nova).
+ *
+ * Em DBs existentes que receberam a migration v4, este seed é no-op
+ * (a migration v4 marca `seeded_v2 = '1'` em meta).
+ *
+ * A flag antiga `seeded_v1` é ignorada — só `seeded_v2` controla este seed.
+ */
 export async function runSeedIfNeeded(db: SQLiteDatabase) {
   const row = await db.getFirstAsync<{ valor: string }>(
-    'SELECT valor FROM meta WHERE chave = ?', ['seeded_v1']
+    'SELECT valor FROM meta WHERE chave = ?', ['seeded_v2']
   );
   if (row?.valor === '1') return;
 
   await db.withTransactionAsync(async () => {
     const now = Date.now();
-    for (const a of ALIMENTOS_BASE) {
+    for (const a of BASE_ALIMENTOS_V2) {
+      // Pula se já existe com o mesmo nome (defesa contra race com migration).
+      const existente = await db.getFirstAsync<{ id: string }>(
+        `SELECT id FROM alimentos WHERE nome = ? LIMIT 1`,
+        [a.nome]
+      );
+      if (existente?.id) continue;
       await db.runAsync(
-        `INSERT INTO alimentos (id, nome, categoria, unidade, proteina, carbo, gordura, criado_em)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [nanoid(), a.nome, a.categoria, a.unidade, a.proteina, a.carbo, a.gordura, now]
+        `INSERT INTO alimentos
+           (id, nome, categoria, unidade, proteina, carbo, gordura, fator_preparo, possui_fator, criado_em)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          nanoid(),
+          a.nome,
+          a.categoria,
+          a.unidade,
+          a.proteina,
+          a.carbo,
+          a.gordura,
+          a.fatorPreparo,
+          a.possuiFator ? 1 : 0,
+          now,
+        ]
       );
     }
     await db.runAsync(
       `INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)`,
-      ['seeded_v1', '1']
+      ['seeded_v2', '1']
     );
   });
 }

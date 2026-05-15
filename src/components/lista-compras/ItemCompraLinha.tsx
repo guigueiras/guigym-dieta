@@ -1,5 +1,5 @@
 import { memo, useEffect } from 'react';
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing,
 } from 'react-native-reanimated';
@@ -14,11 +14,18 @@ interface Props {
   dietaId: string;
   alimentoId: string;
   nome: string;
+  /** Quantidade que aparece em destaque (de compra). */
   quantidade: number;
+  /** Quantidade preparada (mostrada na linha secundária quando há conversão). */
+  quantidadePreparada?: number;
+  /** Se true, exibe a linha "≈ Xg preparado". */
+  temConversao?: boolean;
   unidade: UnidadeMedida;
 }
 
-function ItemCompraLinhaBase({ dietaId, alimentoId, nome, quantidade, unidade }: Props) {
+function ItemCompraLinhaBase({
+  dietaId, alimentoId, nome, quantidade, quantidadePreparada, temConversao, unidade,
+}: Props) {
   const marcado = useIsItemMarcado(dietaId, alimentoId);
   const { toggleMarcado } = useListaActions();
 
@@ -54,12 +61,20 @@ function ItemCompraLinhaBase({ dietaId, alimentoId, nome, quantidade, unidade }:
     transform: [{ scale: progress.value }],
   }));
 
-  const a11yLabel = `${nome}, ${formatQuantidade(quantidade, unidade)}, ${marcado ? 'marcado' : 'desmarcado'}`;
+  const qtdCompraTxt = formatQuantidade(quantidade, unidade);
+  const qtdPrepTxt = quantidadePreparada != null
+    ? formatQuantidade(quantidadePreparada, unidade)
+    : null;
+
+  const a11yLabel =
+    `${nome}, ${qtdCompraTxt}` +
+    (temConversao && qtdPrepTxt ? `, equivalente a ${qtdPrepTxt} preparado` : '') +
+    `, ${marcado ? 'marcado' : 'desmarcado'}`;
 
   return (
     <Pressable
       onPress={handlePress}
-      hitSlop={{ top: 11, bottom: 11, left: 6, right: 6 }}
+      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
       accessible
       accessibilityRole="checkbox"
       accessibilityState={{ checked: marcado }}
@@ -74,14 +89,21 @@ function ItemCompraLinhaBase({ dietaId, alimentoId, nome, quantidade, unidade }:
       </Animated.View>
 
       <View style={styles.textWrap} importantForAccessibility="no">
-        <Animated.Text style={[styles.nome, textAnimStyle]} numberOfLines={1}>
-          {nome}
-        </Animated.Text>
-        <Animated.View style={[styles.strike, strikeStyle]} pointerEvents="none" />
+        <View style={styles.nomeWrap}>
+          <Animated.Text style={[styles.nome, textAnimStyle]} numberOfLines={1}>
+            {nome}
+          </Animated.Text>
+          <Animated.View style={[styles.strike, strikeStyle]} pointerEvents="none" />
+        </View>
+        {temConversao && qtdPrepTxt && (
+          <Animated.Text style={[styles.sub, textAnimStyle]} numberOfLines={1}>
+            ≈ {qtdPrepTxt} preparado
+          </Animated.Text>
+        )}
       </View>
 
       <Animated.Text style={[styles.qtd, textAnimStyle]} importantForAccessibility="no">
-        {formatQuantidade(quantidade, unidade)}
+        {qtdCompraTxt}
       </Animated.Text>
     </Pressable>
   );
@@ -95,8 +117,8 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md + 2,
-    minHeight: 48,
+    paddingVertical: spacing.md - 2,
+    minHeight: 52,
     gap: spacing.md,
   },
   rowPressed: { opacity: 0.7 },
@@ -110,14 +132,24 @@ const styles = StyleSheet.create({
   },
   textWrap: {
     flex: 1,
+    gap: 2,
+    justifyContent: 'center',
+  },
+  nomeWrap: {
     position: 'relative',
     justifyContent: 'center',
-    height: 22,
+    minHeight: 20,
   },
   nome: {
     fontSize: 15,
     fontWeight: '500',
     color: colors.text,
+  },
+  sub: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textMuted,
+    letterSpacing: 0.1,
   },
   strike: {
     position: 'absolute',
@@ -131,7 +163,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: colors.text,
-    minWidth: 56,
+    minWidth: 64,
     textAlign: 'right',
   },
 });

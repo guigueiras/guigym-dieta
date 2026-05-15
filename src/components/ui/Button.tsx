@@ -21,6 +21,7 @@ interface Props {
   onPress?: () => void;
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  numberOfLines?: number;
 }
 
 export function Button({
@@ -36,6 +37,7 @@ export function Button({
   onPress,
   accessibilityLabel,
   accessibilityHint,
+  numberOfLines = 1,
 }: Props) {
   const v = VARIANTS[variant];
   const dis = disabled || loading;
@@ -74,7 +76,13 @@ export function Button({
       ) : (
         <View style={styles.row}>
           {icon}
-          <Text style={[styles.text, { color: v.fg }]}>{children}</Text>
+          <Text
+            style={[styles.text, { color: v.fg }]}
+            numberOfLines={numberOfLines}
+            allowFontScaling={false}
+          >
+            {children}
+          </Text>
         </View>
       )}
     </APressable>
