@@ -24,7 +24,7 @@ export function htmlListaCompras(dietaNome: string, grupos: GrupoCompra[]): stri
           <li>
             <span class="check">☐</span>
             <span class="nome">${escapeHtml(it.nome)}</span>
-            <span class="qtd">${formatQuantidade(it.totalQuantidade, it.unidade)}</span>
+            <span class="qtd">${formatQuantidade(it.totalCompra, it.unidade)}</span>
           </li>
         `).join('')}
       </ul>
