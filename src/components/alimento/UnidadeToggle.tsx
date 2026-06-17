@@ -10,9 +10,10 @@ import { hap } from '@/utils/haptics';
 interface Props {
   value: UnidadeMedida;
   onChange: (v: UnidadeMedida) => void;
+  mostrarUnidade?: boolean;
 }
 
-const OPCOES: Array<{ id: UnidadeMedida; label: string }> = [
+const TODAS_OPCOES: Array<{ id: UnidadeMedida; label: string }> = [
   { id: 'g',  label: 'g'   },
   { id: 'ml', label: 'ml'  },
   { id: 'un', label: 'un.' },
@@ -20,19 +21,20 @@ const OPCOES: Array<{ id: UnidadeMedida; label: string }> = [
 
 const HEIGHT = 46;
 
-export function UnidadeToggle({ value, onChange }: Props) {
+export function UnidadeToggle({ value, onChange, mostrarUnidade = false }: Props) {
+  const opcoes = mostrarUnidade ? TODAS_OPCOES : TODAS_OPCOES.filter((o) => o.id !== 'un');
   const [containerW, setContainerW] = useState(0);
   const indicatorX = useSharedValue(0);
 
   useEffect(() => {
     if (containerW === 0) return;
-    const segW = (containerW - 4) / OPCOES.length;
-    const idx = OPCOES.findIndex((o) => o.id === value);
+    const segW = (containerW - 4) / opcoes.length;
+    const idx = opcoes.findIndex((o) => o.id === value);
     indicatorX.value = withSpring(idx * segW, { damping: 22, stiffness: 240, mass: 0.8 });
-  }, [value, containerW]);
+  }, [value, containerW, opcoes.length]);
 
   const indicatorStyle = useAnimatedStyle(() => {
-    const segW = containerW > 0 ? (containerW - 4) / OPCOES.length : 0;
+    const segW = containerW > 0 ? (containerW - 4) / opcoes.length : 0;
     return {
       width: segW,
       transform: [{ translateX: indicatorX.value }],
@@ -44,7 +46,7 @@ export function UnidadeToggle({ value, onChange }: Props) {
   return (
     <View style={styles.wrap} onLayout={onLayout}>
       <Animated.View style={[styles.indicator, indicatorStyle]} pointerEvents="none" />
-      {OPCOES.map((o) => {
+      {opcoes.map((o) => {
         const ativo = o.id === value;
         return (
           <Pressable

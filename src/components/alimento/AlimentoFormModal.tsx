@@ -63,6 +63,12 @@ export function AlimentoFormModal({ visible, onClose, modo, alimentoId }: Props)
     return () => clearTimeout(t);
   }, [visible, modo, alimento]);
 
+  const mostrarUnidade = categoria === 'frutas' || categoria === 'vegetais';
+
+  useEffect(() => {
+    if (!mostrarUnidade && unidade === 'un') setUnidade('g');
+  }, [categoria]);
+
   const nomeValido = nome.trim().length >= 1;
   const macrosValidos = (proteina ?? 0) >= 0 && (carbo ?? 0) >= 0 && (gordura ?? 0) >= 0;
   const podeSalvar = nomeValido && macrosValidos && !salvando;
@@ -146,7 +152,7 @@ export function AlimentoFormModal({ visible, onClose, modo, alimentoId }: Props)
         </View>
         <View style={[styles.field, { flex: 1 }]}>
           <Text style={styles.label}>Unidade</Text>
-          <UnidadeToggle value={unidade} onChange={setUnidade} />
+          <UnidadeToggle value={unidade} onChange={setUnidade} mostrarUnidade={mostrarUnidade} />
         </View>
       </View>
 
@@ -161,7 +167,7 @@ export function AlimentoFormModal({ visible, onClose, modo, alimentoId }: Props)
         </View>
       </View>
 
-      <UnidadeHint unidade={unidade} />
+      <UnidadeHint unidade={unidade} categoria={categoria} />
 
       <ConversaoCompraField
         unidade={unidade}

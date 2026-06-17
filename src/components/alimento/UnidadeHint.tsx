@@ -1,33 +1,20 @@
-import { memo, useEffect } from 'react';
+import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, {
-  FadeIn, FadeOut,
-  useSharedValue, useAnimatedStyle, withTiming, Easing,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Info } from 'lucide-react-native';
 import { colors, spacing } from '@/theme/colors';
 import type { UnidadeMedida } from '@/types';
+import type { CategoriaId } from '@/constants/categorias';
 
 interface Props {
   unidade: UnidadeMedida;
+  categoria?: CategoriaId;
 }
 
-function UnidadeHintBase({ unidade }: Props) {
+function UnidadeHintBase({ unidade, categoria }: Props) {
   const isLiquido = unidade === 'ml';
   const isUnidade = unidade === 'un';
-
-  const opacity = useSharedValue(isLiquido || isUnidade ? 1 : 0.85);
-
-  useEffect(() => {
-    opacity.value = withTiming(isLiquido || isUnidade ? 1 : 0.85, {
-      duration: 220,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [isLiquido, isUnidade]);
-
-  const opacityStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  const exemploUnidade = categoria === 'vegetais' ? '1 cebola' : '1 banana';
 
   return (
     <Animated.View
@@ -38,7 +25,6 @@ function UnidadeHintBase({ unidade }: Props) {
         styles.wrap,
         isLiquido && styles.wrapLiquido,
         isUnidade && styles.wrapUnidade,
-        opacityStyle,
       ]}
     >
       <View style={[
@@ -62,7 +48,7 @@ function UnidadeHintBase({ unidade }: Props) {
         </Text>
         <Text style={styles.subtitulo}>
           {isUnidade
-            ? 'Insira os macros de 1 unidade (ex: 1 banana). Os valores podem ser imprecisos pois o tamanho varia.'
+            ? `Insira os macros de 1 unidade (ex: ${exemploUnidade}). Os valores podem ser imprecisos pois o tamanho varia.`
             : <>Proteína, carbo e gordura são sempre em <Text style={styles.bold}>gramas</Text>{isLiquido ? ', mesmo para líquidos' : ''}.</>
           }
         </Text>
