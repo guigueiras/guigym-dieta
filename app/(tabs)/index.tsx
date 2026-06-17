@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native';
@@ -10,9 +10,7 @@ import { AnimatedListItem } from '@/components/ui/AnimatedListItem';
 import { DietaListItem } from '@/components/dieta/DietaListItem';
 import { DietaListItemSkeleton } from '@/components/dieta/DietaListItemSkeleton';
 import { NovaDietaModal } from '@/components/dieta/NovaDietaModal';
-import {
-  useDietasLoaded, useDietasIds, useDietasFiltradas,
-} from '@/stores/useDietasStore';
+import { useDietasLoaded, useDietasIds, useDietasFiltradas } from '@/stores/useDietasStore';
 
 export default function DietasScreen() {
   const loaded = useDietasLoaded();
@@ -26,6 +24,7 @@ export default function DietasScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+
       <View style={styles.header}>
         <Text style={styles.titulo}>Minhas Dietas</Text>
         <Text style={styles.subtitulo}>Organize sua alimentação semanal</Text>

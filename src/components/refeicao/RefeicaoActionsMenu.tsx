@@ -14,19 +14,25 @@ interface Props {
   podeExcluir: boolean;
   onClose: () => void;
   onRenomear: () => void;
+  onSalvarComoModelo: () => void;
 }
 
 const MENU_W = 180;
-const MENU_H = 92;
+const MENU_H = 140;
 
 export function RefeicaoActionsMenu({
-  visible, anchor, dia, refeicaoId, refeicaoNome, podeExcluir, onClose, onRenomear,
+  visible, anchor, dia, refeicaoId, refeicaoNome, podeExcluir, onClose, onRenomear, onSalvarComoModelo,
 }: Props) {
   const { removeRefeicao } = useEditActions();
 
   const screen = Dimensions.get('window');
   const left = anchor ? Math.min(Math.max(8, anchor.x - MENU_W), screen.width - MENU_W - 8) : 0;
   const top  = anchor ? Math.min(anchor.y + 4, screen.height - MENU_H - 8) : 0;
+
+  const handleSalvarComoModelo = () => {
+    onClose();
+    setTimeout(() => onSalvarComoModelo(), 50);
+  };
 
   const handleRenomear = () => {
     onClose();
@@ -57,6 +63,13 @@ export function RefeicaoActionsMenu({
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <View style={[styles.menu, { left, top }]}>
+          <Pressable
+            onPress={handleSalvarComoModelo}
+            style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
+          >
+            <Text style={styles.itemText}>Salvar como modelo</Text>
+          </Pressable>
+          <View style={styles.sep} />
           <Pressable
             onPress={handleRenomear}
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}

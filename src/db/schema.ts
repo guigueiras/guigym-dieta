@@ -17,9 +17,15 @@ export const CREATE_STATEMENTS: string[] = [
   `CREATE TABLE IF NOT EXISTS dietas (
     id TEXT PRIMARY KEY,
     nome TEXT NOT NULL,
-    tipo TEXT NOT NULL,
+    tipo TEXT,
     criada_em INTEGER NOT NULL,
-    atualizada_em INTEGER NOT NULL
+    atualizada_em INTEGER NOT NULL,
+    target_calories REAL,
+    target_protein_g REAL,
+    target_carb_g REAL,
+    target_fat_g REAL,
+    target_goal TEXT,
+    target_carb_profile TEXT
   );`,
 
   `CREATE TABLE IF NOT EXISTS refeicoes (
@@ -56,4 +62,32 @@ export const CREATE_STATEMENTS: string[] = [
     icone TEXT,
     criada_em INTEGER NOT NULL
   );`,
+
+  `CREATE TABLE IF NOT EXISTS user_profile (
+    id TEXT PRIMARY KEY,
+    sex TEXT,
+    age INTEGER,
+    weight_kg REAL,
+    height_cm REAL,
+    activity_level TEXT,
+    atualizada_em INTEGER NOT NULL
+  );`,
+
+  `CREATE TABLE IF NOT EXISTS modelos_refeicao (
+    id TEXT PRIMARY KEY,
+    nome TEXT NOT NULL,
+    criada_em INTEGER NOT NULL,
+    atualizada_em INTEGER NOT NULL
+  );`,
+
+  `CREATE TABLE IF NOT EXISTS modelos_refeicao_alimentos (
+    id TEXT PRIMARY KEY,
+    modelo_id TEXT NOT NULL,
+    alimento_id TEXT NOT NULL,
+    ordem INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (modelo_id) REFERENCES modelos_refeicao(id) ON DELETE CASCADE,
+    FOREIGN KEY (alimento_id) REFERENCES alimentos(id) ON DELETE RESTRICT
+  );`,
+
+  `CREATE INDEX IF NOT EXISTS idx_mra_modelo ON modelos_refeicao_alimentos(modelo_id);`,
 ];

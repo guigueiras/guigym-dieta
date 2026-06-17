@@ -26,7 +26,7 @@ export function DietaActionsMenu({ visible, anchor, dietaId, onClose }: Props) {
 
   const handleEditar = () => {
     onClose();
-    setTimeout(() => setEditando(true), 50);
+    setTimeout(() => setEditando(true), 320);
   };
 
   const handleExcluir = () => {

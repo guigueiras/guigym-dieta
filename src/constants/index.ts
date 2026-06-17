@@ -1,12 +1,5 @@
 export * from './categorias';
 
-export const TIPOS_DIETA = [
-  'Ganho de massa',
-  'Perda de gordura',
-  'Manutenção',
-  'Definição',
-] as const;
-
 export const DIAS_SEMANA = [
   { key: 'segunda', label: 'Segunda' },
   { key: 'terca',   label: 'Terça'   },

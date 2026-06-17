@@ -140,11 +140,119 @@ const MIGRATIONS: Migration[] = [
         );
       }
 
-      // 5) Marca seed v2 como aplicado pra o runSeedIfNeeded (no seed.ts) ser no-op.
+      // 5) Marca seed v2 como aplicado pra o runSeedIfNeeded ser no-op.
       await db.runAsync(
         `INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)`,
         ['seeded_v2', '1']
       );
+    },
+  },
+  {
+    versao: 5,
+    up: async (db) => {
+      // Adiciona colunas de DietTargets na tabela `dietas`.
+      // Todas nullable: dietas antigas preservam comportamento (sem targets).
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(dietas)`);
+      const nomesCols = new Set(cols.map((c) => c.name));
+
+      const novasColunas: Array<[string, string]> = [
+        ['target_calories',     'REAL'],
+        ['target_protein_g',    'REAL'],
+        ['target_carb_g',       'REAL'],
+        ['target_fat_g',        'REAL'],
+        ['target_goal',         'TEXT'],
+        ['target_carb_profile', 'TEXT'],
+      ];
+
+      for (const [nome, tipo] of novasColunas) {
+        if (!nomesCols.has(nome)) {
+          await db.runAsync(`ALTER TABLE dietas ADD COLUMN ${nome} ${tipo}`);
+        }
+      }
+    },
+  },
+  {
+    versao: 6,
+    up: async (db) => {
+      // Cria tabela user_profile (single-row, id sempre 'default').
+      // Idempotente: CREATE TABLE IF NOT EXISTS.
+      await db.runAsync(
+        `CREATE TABLE IF NOT EXISTS user_profile (
+          id TEXT PRIMARY KEY,
+          sex TEXT,
+          age INTEGER,
+          weight_kg REAL,
+          height_cm REAL,
+          activity_level TEXT,
+          atualizada_em INTEGER NOT NULL
+        );`
+      );
+    },
+  },
+  {
+    versao: 7,
+    up: async (db) => {
+      // Remove o NOT NULL da coluna `tipo` em dietas.
+      // SQLite não suporta ALTER COLUMN — recria a tabela preservando dados.
+      //
+      // Etapas:
+      //  1. Cria nova tabela com schema correto (tipo nullable)
+      //  2. Copia dados da antiga
+      //  3. Drop da antiga
+      //  4. Rename da nova
+      //
+      // Transação implícita do migrations.ts garante atomicidade (se um
+      // passo falha, rollback completo).
+      await db.execAsync(`
+        CREATE TABLE dietas_new (
+          id TEXT PRIMARY KEY,
+          nome TEXT NOT NULL,
+          tipo TEXT,
+          criada_em INTEGER NOT NULL,
+          atualizada_em INTEGER NOT NULL,
+          target_calories REAL,
+          target_protein_g REAL,
+          target_carb_g REAL,
+          target_fat_g REAL,
+          target_goal TEXT,
+          target_carb_profile TEXT
+        );
+
+        INSERT INTO dietas_new
+        SELECT id, nome, tipo, criada_em, atualizada_em,
+               target_calories, target_protein_g, target_carb_g, target_fat_g,
+               target_goal, target_carb_profile
+        FROM dietas;
+
+        DROP TABLE dietas;
+
+        ALTER TABLE dietas_new RENAME TO dietas;
+      `);
+    },
+  },
+  {
+    versao: 8,
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS modelos_refeicao (
+          id TEXT PRIMARY KEY,
+          nome TEXT NOT NULL,
+          criada_em INTEGER NOT NULL,
+          atualizada_em INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS modelos_refeicao_alimentos (
+          id TEXT PRIMARY KEY,
+          modelo_id TEXT NOT NULL,
+          alimento_id TEXT NOT NULL,
+          ordem INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (modelo_id) REFERENCES modelos_refeicao(id) ON DELETE CASCADE,
+          FOREIGN KEY (alimento_id) REFERENCES alimentos(id) ON DELETE RESTRICT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_mra_modelo
+          ON modelos_refeicao_alimentos(modelo_id);
+      `);
     },
   },
 ];

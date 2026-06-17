@@ -18,6 +18,8 @@ import { AnimatedListItem } from '@/components/ui/AnimatedListItem';
 import { Highlight } from '@/components/ui/Highlight';
 import { RefeicaoActionsMenu } from './RefeicaoActionsMenu';
 import { RenomearRefeicaoModal } from './RenomearRefeicaoModal';
+import { NovoModeloModal } from '@/components/modelos/NovoModeloModal';
+import { useModelosActions } from '@/stores/useModelosRefeicaoStore';
 import { hap } from '@/utils/haptics';
 import type { DiaSemana } from '@/types';
 
@@ -41,8 +43,18 @@ function RefeicaoCardEditBase({
     (s) => s.dietaEditada?.dias.find((d) => d.nome === dia)?.refeicoes.length ?? 0
   );
 
+  const { adicionarAlimento } = useModelosActions();
   const [menuOpen, setMenuOpen] = useState(false);
   const [renomearOpen, setRenomearOpen] = useState(false);
+  const [salvarModeloOpen, setSalvarModeloOpen] = useState(false);
+
+  const handleModeloCriado = async (modeloId: string) => {
+    if (!ref) return;
+    for (const a of ref.alimentos) {
+      await adicionarAlimento(modeloId, a.alimentoId);
+    }
+    hap.add();
+  };
   const menuAnchorRef = useRef<View>(null);
   const [menuAnchorPos, setMenuAnchorPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -170,6 +182,7 @@ function RefeicaoCardEditBase({
         podeExcluir={podeExcluir}
         onClose={() => setMenuOpen(false)}
         onRenomear={() => setRenomearOpen(true)}
+        onSalvarComoModelo={() => setSalvarModeloOpen(true)}
       />
 
       <RenomearRefeicaoModal
@@ -177,6 +190,13 @@ function RefeicaoCardEditBase({
         onClose={() => setRenomearOpen(false)}
         dia={dia}
         refeicaoId={refeicaoId}
+      />
+
+      <NovoModeloModal
+        visible={salvarModeloOpen}
+        onClose={() => setSalvarModeloOpen(false)}
+        nomeInicial={ref?.nome}
+        onSuccess={handleModeloCriado}
       />
     </>
   );

@@ -10,6 +10,8 @@ import { Platform, View } from 'react-native';
 import { getDatabase } from '@/db/database';
 import { useDietasStore } from '@/stores/useDietasStore';
 import { useAlimentosStore } from '@/stores/useAlimentosStore';
+import { useUserProfileStore } from '@/stores/useUserProfileStore';
+import { useModelosRefeicaoStore } from '@/stores/useModelosRefeicaoStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -23,6 +25,8 @@ export default function RootLayout() {
         await Promise.all([
           useDietasStore.getState().loadAll(),
           useAlimentosStore.getState().loadAll(),
+          useUserProfileStore.getState().load(),
+          useModelosRefeicaoStore.getState().loadAll(),
         ]);
       } catch (e) {
         console.error('[boot] erro ao inicializar', e);

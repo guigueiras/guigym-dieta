@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, ListChecks } from 'lucide-react-native';
+import { Home, ListChecks, UtensilsCrossed } from 'lucide-react-native';
 import { StyleSheet } from 'react-native';
 import { colors } from '@/theme/colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,6 +45,15 @@ export default function TabsLayout() {
           title: 'Dietas',
           tabBarIcon: ({ color, focused }) => (
             <Home size={focused ? 24 : 22} color={color} strokeWidth={focused ? 2.4 : 2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="refeicoes"
+        options={{
+          title: 'Refeições',
+          tabBarIcon: ({ color, focused }) => (
+            <UtensilsCrossed size={focused ? 24 : 22} color={color} strokeWidth={focused ? 2.4 : 2} />
           ),
         }}
       />

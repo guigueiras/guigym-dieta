@@ -10,6 +10,7 @@ import { RefeicaoCardView } from '@/components/refeicao/RefeicaoCardView';
 import { TotalDiaFooter } from '@/components/refeicao/TotalDiaFooter';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useDieta } from '@/stores/useDietasStore';
+import { DietaTargetsCTA } from '@/features/tdee-wizard/components/DietaTargetsCTA';
 import { useElementHeight } from '@/hooks/useElementHeight';
 import { hap } from '@/utils/haptics';
 import type { DiaSemana } from '@/types';
@@ -84,6 +85,10 @@ export default function DietaVisualizar() {
 
       <DiasTabs valor={diaAtivo} onChange={handleChangeDia} />
 
+      <View style={styles.ctaWrap}>
+        <DietaTargetsCTA dietaId={id} />
+      </View>
+
       <FlatList
         data={refeicaoIds}
         keyExtractor={(rId) => rId}
@@ -130,5 +135,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+  },
+  ctaWrap: {
+    paddingHorizontal: spacing.screenH,
   },
 });

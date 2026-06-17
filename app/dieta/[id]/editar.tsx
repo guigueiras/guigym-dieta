@@ -15,7 +15,8 @@ import { ModoEdicaoBanner } from '@/components/refeicao/ModoEdicaoBanner';
 import { RefeicaoCardEdit } from '@/components/refeicao/RefeicaoCardEdit';
 import { AdicionarRefeicaoButton } from '@/components/refeicao/AdicionarRefeicaoButton';
 import { TotalDiaFooterEdit } from '@/components/refeicao/TotalDiaFooterEdit';
-import { AdicionarAlimentoSheet } from '@/components/alimento/AdicionarAlimentoSheet';
+import { AdicionarSheet } from '@/components/alimento/AdicionarSheet';
+import { useModelosRefeicaoStore } from '@/stores/useModelosRefeicaoStore';
 import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -46,7 +47,18 @@ export default function DietaEditar() {
   const saving = useEditSaving();
   const refeicoes = useEditRefeicoesDoDia(diaAtivo);
 
-  const [sheet, setSheet] = useState<{ refeicaoId: string } | null>(null);
+  const [sheet, setSheet] = useState<{ refeicaoId: string; initialTab: 0 | 1 } | null>(null);
+
+  const handleSelectModelo = (modeloId: string) => {
+    if (!sheet) return;
+    const modelo = useModelosRefeicaoStore.getState().byId[modeloId];
+    if (!modelo) { setSheet(null); return; }
+    for (const ma of modelo.alimentos) {
+      addAlimentoNaRefeicao(diaAtivo, sheet.refeicaoId, ma.alimentoId, 100);
+    }
+    hap.add();
+    setSheet(null);
+  };
   const [toastVisible, setToastVisible] = useState(false);
   const [highlightAlimentoId, setHighlightAlimentoId] = useState<string | null>(null);
   const [scrollToRefId, setScrollToRefId] = useState<string | null>(null);
@@ -91,7 +103,7 @@ export default function DietaEditar() {
   const handleAdicionarAlimento = (refeicaoId: string) => {
     Keyboard.dismiss();
     hap.tap();
-    setSheet({ refeicaoId });
+    setSheet({ refeicaoId, initialTab: 0 });
   };
 
   const handleConfirmarAlimento = useCallback(
@@ -208,11 +220,13 @@ export default function DietaEditar() {
         <TotalDiaFooterEdit dia={diaAtivo} />
       </View>
 
-      <AdicionarAlimentoSheet
+      <AdicionarSheet
         visible={!!sheet}
         refeicaoId={sheet?.refeicaoId}
         dia={diaAtivo}
+        initialTab={sheet?.initialTab}
         onConfirmar={handleConfirmarAlimento}
+        onSelectModelo={handleSelectModelo}
         onClose={() => setSheet(null)}
       />
 

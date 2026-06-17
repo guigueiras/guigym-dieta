@@ -6,9 +6,12 @@ export async function salvarDietaCompleta(dieta: Dieta): Promise<void> {
   const now = Date.now();
 
   await db.withTransactionAsync(async () => {
+    // editDietaRepo só edita refeições/alimentos. Nome e tipo são
+    // gerenciados em outros lugares (renomear, atualizarTargets).
+    // Aqui só marca atualizada_em pra refletir que houve modificação.
     await db.runAsync(
-      `UPDATE dietas SET nome = ?, tipo = ?, atualizada_em = ? WHERE id = ?`,
-      [dieta.nome, dieta.tipo, now, dieta.id]
+      `UPDATE dietas SET atualizada_em = ? WHERE id = ?`,
+      [now, dieta.id]
     );
     await db.runAsync(`DELETE FROM refeicoes WHERE dieta_id = ?`, [dieta.id]);
 
