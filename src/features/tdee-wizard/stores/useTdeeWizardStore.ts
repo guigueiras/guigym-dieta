@@ -11,25 +11,18 @@ import type {
 
 // ─── Tipos ───────────────────────────────────────────────────
 
-/**
- * Rascunho dos inputs durante o preenchimento do wizard.
- * Campos `null` = "ainda não preenchido" (distingue de undefined frouxo).
- *
- * Vira um `UserStats` completo só quando todos os campos obrigatórios
- * estão presentes — checado por `buildUserStats`.
- */
 interface WizardDraft {
   sex: Sex | null;
   age: number | null;
   weightKg: number | null;
   heightCm: number | null;
   activityLevel: ActivityLevel | null;
+  bodyFatPct: number | null; // opcional — null = não informado
 }
 
 const STEP_MIN = 1;
 const STEP_MAX = 4;
 
-/** Defaults do step 4 (seleção de output). Não são defaults de input. */
 const DEFAULT_GOAL: Goal = 'maintenance';
 const DEFAULT_CARB_PROFILE: CarbProfile = 'medium_carb';
 
@@ -39,42 +32,31 @@ const EMPTY_DRAFT: WizardDraft = {
   weightKg: null,
   heightCm: null,
   activityLevel: null,
+  bodyFatPct: null,
 };
 
 interface TdeeWizardState {
   step: number;
   draft: WizardDraft;
-
-  /** Resultado calculado (9 targets). null até o step 4 calcular. */
   result: DietTargetsSet | null;
-
-  /** Seleção atual no step 4. */
   selectedGoal: Goal;
   selectedCarbProfile: CarbProfile;
 
-  // Setters de input
   setSex: (sex: Sex) => void;
   setAge: (age: number | null) => void;
   setWeight: (kg: number | null) => void;
   setHeight: (cm: number | null) => void;
   setActivity: (level: ActivityLevel) => void;
+  setBodyFat: (pct: number | null) => void;
 
-  // Navegação
   goToStep: (n: number) => void;
   nextStep: () => void;
   prevStep: () => void;
 
-  // Resultado / seleção
   setResult: (result: DietTargetsSet) => void;
   setSelection: (goal: Goal, carbProfile: CarbProfile) => void;
 
-  // Lifecycle
   reset: () => void;
-
-  /**
-   * Monta um UserStats completo a partir do draft.
-   * Retorna null se algum campo obrigatório estiver faltando.
-   */
   buildUserStats: () => UserStats | null;
 }
 
@@ -92,6 +74,7 @@ export const useTdeeWizardStore = create<TdeeWizardState>((set, get) => ({
   setWeight: (kg) => set((s) => ({ draft: { ...s.draft, weightKg: kg } })),
   setHeight: (cm) => set((s) => ({ draft: { ...s.draft, heightCm: cm } })),
   setActivity: (level) => set((s) => ({ draft: { ...s.draft, activityLevel: level } })),
+  setBodyFat: (pct) => set((s) => ({ draft: { ...s.draft, bodyFatPct: pct } })),
 
   goToStep: (n) => set({ step: Math.min(STEP_MAX, Math.max(STEP_MIN, n)) }),
   nextStep: () => set((s) => ({ step: Math.min(STEP_MAX, s.step + 1) })),
@@ -111,7 +94,7 @@ export const useTdeeWizardStore = create<TdeeWizardState>((set, get) => ({
     }),
 
   buildUserStats: () => {
-    const { sex, age, weightKg, heightCm, activityLevel } = get().draft;
+    const { sex, age, weightKg, heightCm, activityLevel, bodyFatPct } = get().draft;
     if (
       sex === null ||
       age === null ||
@@ -121,17 +104,20 @@ export const useTdeeWizardStore = create<TdeeWizardState>((set, get) => ({
     ) {
       return null;
     }
-    return { sex, age, weightKg, heightCm, activityLevel };
+    return {
+      sex,
+      age,
+      weightKg,
+      heightCm,
+      activityLevel,
+      // null → undefined (engine recebe undefined = sem BF%)
+      ...(bodyFatPct !== null ? { bodyFatPct } : {}),
+    };
   },
 }));
 
-// ─── Selectors derivados (validação por step) ────────────────
+// ─── Selectors derivados ─────────────────────────────────────
 
-/**
- * Validação leve por step — decide se o botão "Continuar" fica habilitado.
- * NÃO valida ranges aqui (isso é da engine); só checa "preenchido + plausível".
- * Ranges completos são validados pela engine no step 4.
- */
 function isStep1Valid(draft: WizardDraft): boolean {
   return (
     draft.sex !== null &&
@@ -151,16 +137,13 @@ function isStep2Valid(draft: WizardDraft): boolean {
     draft.heightCm >= 100 &&
     draft.heightCm <= 250
   );
+  // bodyFatPct é opcional — não bloqueia avanço
 }
 
 function isStep3Valid(draft: WizardDraft): boolean {
   return draft.activityLevel !== null;
 }
 
-/**
- * Retorna se o step informado pode avançar (botão habilitado).
- * Step 4 não tem "próximo" (é o final), então sempre retorna true aqui.
- */
 export function isStepValid(step: number, draft: WizardDraft): boolean {
   switch (step) {
     case 1: return isStep1Valid(draft);
@@ -173,9 +156,7 @@ export function isStepValid(step: number, draft: WizardDraft): boolean {
 // ─── Hooks de conveniência ───────────────────────────────────
 
 export const useWizardStep = () => useTdeeWizardStore((s) => s.step);
-
 export const useWizardDraft = () => useTdeeWizardStore((s) => s.draft);
-
 export const useWizardResult = () => useTdeeWizardStore((s) => s.result);
 
 export const useWizardSelection = () =>
@@ -194,6 +175,7 @@ export const useWizardActions = () =>
       setWeight: s.setWeight,
       setHeight: s.setHeight,
       setActivity: s.setActivity,
+      setBodyFat: s.setBodyFat,
       goToStep: s.goToStep,
       nextStep: s.nextStep,
       prevStep: s.prevStep,
@@ -204,8 +186,5 @@ export const useWizardActions = () =>
     }))
   );
 
-/**
- * Hook que diz se o step atual pode avançar. Reativo ao draft.
- */
 export const useCanAdvance = () =>
   useTdeeWizardStore((s) => isStepValid(s.step, s.draft));

@@ -49,15 +49,12 @@ const MIGRATIONS: Migration[] = [
   {
     versao: 3,
     up: async (db) => {
-      // Adiciona coluna fator_compra (REAL, nullable).
       const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(alimentos)`);
       const temFator = cols.some((c) => c.name === 'fator_compra');
       if (!temFator) {
         await db.runAsync(`ALTER TABLE alimentos ADD COLUMN fator_compra REAL`);
       }
 
-      // Pré-preenche os alimentos seed (apenas se ainda não tiverem fator).
-      // Se o usuário já editou algum desses, preservamos a escolha dele.
       const fatoresIniciais: Array<[string, number | null]> = [
         ['Peito de Frango',     1.43],
         ['Patinho Moído',       1.30],
@@ -79,7 +76,6 @@ const MIGRATIONS: Migration[] = [
   {
     versao: 4,
     up: async (db) => {
-      // 1) Adiciona colunas novas (fator_preparo, possui_fator) idempotente.
       const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(alimentos)`);
       const nomesCols = new Set(cols.map((c) => c.name));
       if (!nomesCols.has('fator_preparo')) {
@@ -89,7 +85,6 @@ const MIGRATIONS: Migration[] = [
         await db.runAsync(`ALTER TABLE alimentos ADD COLUMN possui_fator INTEGER NOT NULL DEFAULT 0`);
       }
 
-      // 2) Remapeia categorias legadas pra estrutura nova.
       const remap: Array<[string, string]> = [
         ['graos', 'carboidratos'],
         ['tuberculos', 'carboidratos'],
@@ -99,9 +94,6 @@ const MIGRATIONS: Migration[] = [
         await db.runAsync(`UPDATE alimentos SET categoria = ? WHERE categoria = ?`, [nova, antiga]);
       }
 
-      // 3) Apaga o seed antigo (v1). Casa por nome EXATO — alimentos custom
-      //    com nomes parecidos não são afetados. Apaga primeiro as referências
-      //    em alimentos_refeicao pra não violar FK RESTRICT.
       for (const nome of NOMES_SEED_V1_OBSOLETOS) {
         const row = await db.getFirstAsync<{ id: string }>(
           `SELECT id FROM alimentos WHERE nome = ? LIMIT 1`,
@@ -112,8 +104,6 @@ const MIGRATIONS: Migration[] = [
         await db.runAsync(`DELETE FROM alimentos WHERE id = ?`, [row.id]);
       }
 
-      // 4) Insere base oficial v2. Idempotente por nome: se um custom já existe
-      //    com o mesmo nome, preserva o existente (não sobrescreve).
       const now = Date.now();
       for (const a of BASE_ALIMENTOS_V2) {
         const existente = await db.getFirstAsync<{ id: string }>(
@@ -140,7 +130,6 @@ const MIGRATIONS: Migration[] = [
         );
       }
 
-      // 5) Marca seed v2 como aplicado pra o runSeedIfNeeded ser no-op.
       await db.runAsync(
         `INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)`,
         ['seeded_v2', '1']
@@ -150,8 +139,6 @@ const MIGRATIONS: Migration[] = [
   {
     versao: 5,
     up: async (db) => {
-      // Adiciona colunas de DietTargets na tabela `dietas`.
-      // Todas nullable: dietas antigas preservam comportamento (sem targets).
       const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(dietas)`);
       const nomesCols = new Set(cols.map((c) => c.name));
 
@@ -174,8 +161,6 @@ const MIGRATIONS: Migration[] = [
   {
     versao: 6,
     up: async (db) => {
-      // Cria tabela user_profile (single-row, id sempre 'default').
-      // Idempotente: CREATE TABLE IF NOT EXISTS.
       await db.runAsync(
         `CREATE TABLE IF NOT EXISTS user_profile (
           id TEXT PRIMARY KEY,
@@ -192,17 +177,6 @@ const MIGRATIONS: Migration[] = [
   {
     versao: 7,
     up: async (db) => {
-      // Remove o NOT NULL da coluna `tipo` em dietas.
-      // SQLite não suporta ALTER COLUMN — recria a tabela preservando dados.
-      //
-      // Etapas:
-      //  1. Cria nova tabela com schema correto (tipo nullable)
-      //  2. Copia dados da antiga
-      //  3. Drop da antiga
-      //  4. Rename da nova
-      //
-      // Transação implícita do migrations.ts garante atomicidade (se um
-      // passo falha, rollback completo).
       await db.execAsync(`
         CREATE TABLE dietas_new (
           id TEXT PRIMARY KEY,
@@ -252,6 +226,14 @@ const MIGRATIONS: Migration[] = [
 
         CREATE INDEX IF NOT EXISTS idx_mra_modelo
           ON modelos_refeicao_alimentos(modelo_id);
+      `);
+    },
+  },
+  {
+    versao: 9,
+    up: async (db) => {
+      await db.execAsync(`
+        ALTER TABLE user_profile ADD COLUMN body_fat_pct REAL;
       `);
     },
   },

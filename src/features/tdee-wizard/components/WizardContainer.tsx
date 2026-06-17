@@ -22,7 +22,7 @@ import { useDietasActions } from '@/stores/useDietasStore';
 import { fromMacroTargets } from '@/types/dieta';
 import type { DietTargets } from '@/types/dieta';
 import type { UserProfile } from '@/types/userProfile';
-import { useUserProfileStore, useUserProfileActions } from '@/stores/useUserProfileStore';
+import { useUserProfileActions } from '@/stores/useUserProfileStore';
 import { hap } from '@/utils/haptics';
 
 const TOTAL_STEPS = 4;
@@ -79,7 +79,6 @@ export function WizardContainer({
   const step = useWizardStep();
   const {
     nextStep, prevStep, reset,
-    setSex, setAge, setWeight, setHeight, setActivity,
     setSelection,
   } = useWizardActions();
   const { setTargets } = useDietasActions();
@@ -91,27 +90,13 @@ export function WizardContainer({
   // Determina se persiste localmente (false) ou devolve via callback (true).
   const isPrecalculo = dietaId === undefined;
 
-  // ─── Pré-preenchimento: ao montar, hidrata draft com perfil salvo ───
-  // E (se houver initialTargets) seta também goal/carbProfile do step 4.
+  // ─── Inicialização ao montar ─────────────────────────────────
+  // Draft começa sempre vazio. Se houver initialTargets, restaura a
+  // seleção de goal/carbProfile do step 4.
   useEffect(() => {
-    // 1) Profile (5 inputs dos steps 1-3)
-    const profile = useUserProfileStore.getState().profile;
-    if (profile) {
-      setSex(profile.sex);
-      setAge(profile.age);
-      setWeight(profile.weightKg);
-      setHeight(profile.heightCm);
-      setActivity(profile.activityLevel);
-    }
-
-    // 2) Targets existentes (step 4): se houver, abre na seleção atual
-    //    em vez de maintenance/medium_carb defaults.
     if (initialTargets) {
       setSelection(initialTargets.goal, initialTargets.carbProfile);
     }
-
-    // Intencional: roda só no mount. Mudanças nessas fontes durante o
-    // wizard não devem reescrever inputs do usuário em andamento.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

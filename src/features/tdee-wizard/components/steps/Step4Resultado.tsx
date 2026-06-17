@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, ActivityIndicator,
 } from 'react-native';
+import { FlaskConical } from 'lucide-react-native';
 import { colors, spacing } from '@/theme/colors';
 import { GoalSegmented } from '../inputs/GoalSegmented';
 import { CarbProfileSegmented } from '../inputs/CarbProfileSegmented';
@@ -16,10 +17,9 @@ import { useWizardCalculation } from '../../hooks/useWizardCalculation';
 export function Step4Resultado() {
   const result = useWizardResult();
   const { goal, carbProfile } = useWizardSelection();
-  const { setSelection, prevStep } = useWizardActions();
-  const { calculate, getDeltaForGoal, error, idle } = useWizardCalculation();
+  const { setSelection } = useWizardActions();
+  const { calculate, getDeltaForGoal, error, idle, usedKatchMcArdle } = useWizardCalculation();
 
-  // Dispara cálculo uma única vez ao montar
   useEffect(() => {
     if (idle) {
       calculate();
@@ -51,7 +51,6 @@ export function Step4Resultado() {
   const target = result[goal][carbProfile];
   const delta = getDeltaForGoal(goal);
   if (!delta) {
-    // edge case: result existe mas delta ainda não (deveria ser instantâneo)
     return (
       <View style={styles.center}>
         <ActivityIndicator size="small" color={colors.primary} />
@@ -65,6 +64,13 @@ export function Step4Resultado() {
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
+      {usedKatchMcArdle && (
+        <View style={styles.chip}>
+          <FlaskConical size={13} color={colors.primaryText} strokeWidth={2.2} />
+          <Text style={styles.chipText}>Calculado com gordura corporal (Katch-McArdle)</Text>
+        </View>
+      )}
+
       <View style={styles.field}>
         <Text style={styles.label}>OBJETIVO</Text>
         <GoalSegmented
@@ -94,9 +100,22 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
     gap: spacing.lg,
   },
-  field: {
-    gap: spacing.sm,
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primaryLight,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
   },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primaryText,
+  },
+  field: { gap: spacing.sm },
   label: {
     fontSize: 12,
     fontWeight: '700',

@@ -13,17 +13,7 @@ function err(error: TDEEError): Result<never> {
 
 // ─── Validação de UserStats ──────────────────────────────────
 
-/**
- * Valida os campos de UserStats que afetam BMR (e os reservados, como bodyFatPct).
- * Centralizado aqui porque BMR é a porta de entrada de toda a cadeia de cálculo.
- *
- * Retorna `null` se tudo ok, ou um TDEEError descrevendo a primeira falha.
- * Estratégia "fail-fast": para na primeira inconsistência pra evitar mensagens
- * de erro ambíguas ("3 campos inválidos") na UI.
- */
 function validateUserStats(stats: UserStats): TDEEError | null {
-  // Sexo: union literal, mas TS não impede atribuição via `as any`.
-  // Defesa em runtime contra entrada de fonte externa (JSON, formulário).
   if (stats.sex !== 'male' && stats.sex !== 'female') {
     return {
       code: 'INVALID_SEX',
@@ -32,7 +22,6 @@ function validateUserStats(stats: UserStats): TDEEError | null {
     };
   }
 
-  // Idade: inteiro dentro do range
   if (!Number.isInteger(stats.age) || !inRange(stats.age, VALIDATION_RANGES.age)) {
     const [min, max] = VALIDATION_RANGES.age;
     return {
@@ -42,7 +31,6 @@ function validateUserStats(stats: UserStats): TDEEError | null {
     };
   }
 
-  // Peso
   if (!inRange(stats.weightKg, VALIDATION_RANGES.weightKg)) {
     const [min, max] = VALIDATION_RANGES.weightKg;
     return {
@@ -52,7 +40,6 @@ function validateUserStats(stats: UserStats): TDEEError | null {
     };
   }
 
-  // Altura
   if (!inRange(stats.heightCm, VALIDATION_RANGES.heightCm)) {
     const [min, max] = VALIDATION_RANGES.heightCm;
     return {
@@ -62,10 +49,6 @@ function validateUserStats(stats: UserStats): TDEEError | null {
     };
   }
 
-  // Nível de atividade: validação leve aqui (string check). Multiplicador é
-  // resolvido em calculateTDEE — se inválido, lá retorna INVALID_ACTIVITY_LEVEL.
-  // Não checamos contra o Record aqui pra manter este módulo independente
-  // de ACTIVITY_MULTIPLIERS.
   if (typeof stats.activityLevel !== 'string' || stats.activityLevel.length === 0) {
     return {
       code: 'INVALID_ACTIVITY_LEVEL',
@@ -74,8 +57,6 @@ function validateUserStats(stats: UserStats): TDEEError | null {
     };
   }
 
-  // BF% (opcional): valida se presente. Não influencia BMR nesta versão,
-  // mas a engine rejeita valores absurdos pra coerência com a reserva do campo.
   if (stats.bodyFatPct !== undefined) {
     if (!inRange(stats.bodyFatPct, VALIDATION_RANGES.bodyFatPct)) {
       const [min, max] = VALIDATION_RANGES.bodyFatPct;
@@ -93,38 +74,34 @@ function validateUserStats(stats: UserStats): TDEEError | null {
 // ─── Cálculo ─────────────────────────────────────────────────
 
 /**
- * Calcula a Basal Metabolic Rate (BMR) usando Mifflin-St Jeor.
+ * Calcula a BMR com a fórmula mais precisa disponível:
  *
+ * Quando `bodyFatPct` presente → **Katch-McArdle**:
+ *   LBM = weightKg × (1 − bodyFatPct / 100)
+ *   BMR = 370 + 21.6 × LBM
+ *   Mais preciso porque usa massa magra real; ignora sexo/idade/altura.
+ *
+ * Quando ausente → **Mifflin-St Jeor**:
  *   Homem:  BMR = 10·W + 6.25·H − 5·A + 5
  *   Mulher: BMR = 10·W + 6.25·H − 5·A − 161
- *
- * onde:
- *   W = peso em kg
- *   H = altura em cm
- *   A = idade em anos
- *
- * Mifflin-St Jeor é a fórmula recomendada pela Academy of Nutrition and Dietetics
- * (2005) por ter o menor erro vs calorimetria indireta em populações ocidentais.
- *
- * Retorna `Result<number>`:
- *  - `{ ok: true, value: bmr }` em kcal/dia (não arredondado)
- *  - `{ ok: false, error }` se input inválido
- *
- * O valor retornado é float — arredondamento é responsabilidade do consumidor
- * (UI ou função de composição), pra evitar perda cumulativa de precisão
- * em pipelines multi-step.
  */
 export function calculateBMR(stats: UserStats): Result<number> {
   const validationError = validateUserStats(stats);
   if (validationError) return err(validationError);
 
-  const { sex, age, weightKg, heightCm } = stats;
+  let bmr: number;
 
-  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
-  const bmr = sex === 'male' ? base + 5 : base - 161;
+  if (stats.bodyFatPct !== undefined) {
+    // Katch-McArdle
+    const lbm = stats.weightKg * (1 - stats.bodyFatPct / 100);
+    bmr = 370 + 21.6 * lbm;
+  } else {
+    // Mifflin-St Jeor
+    const { sex, age, weightKg, heightCm } = stats;
+    const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
+    bmr = sex === 'male' ? base + 5 : base - 161;
+  }
 
-  // Sanity check defensivo: BMR realista vai de ~800 a ~3000 kcal/dia.
-  // Se passou validação mas resultou em valor absurdo, algo está muito errado.
   if (!Number.isFinite(bmr) || bmr <= 0) {
     return err({
       code: 'COMPUTATION_FAILED',
@@ -135,5 +112,4 @@ export function calculateBMR(stats: UserStats): Result<number> {
   return { ok: true, value: bmr };
 }
 
-// Exportado pra reuso em calculateTDEE e calculateDietTargets sem duplicação.
 export { validateUserStats };

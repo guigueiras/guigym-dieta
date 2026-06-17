@@ -19,4 +19,5 @@ export interface UserProfile {
   weightKg: number;
   heightCm: number;
   activityLevel: ActivityLevel;
+  bodyFatPct?: number; // 3–60, opcional
 }
