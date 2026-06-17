@@ -10,7 +10,8 @@ export interface MacrosCalculados {
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export function calcMacros(alimento: Alimento, quantidade: number): MacrosCalculados {
-  const f = quantidade / 100;
+  // 'un': macros armazenados já são por 1 unidade, então f = quantidade direto
+  const f = alimento.unidade === 'un' ? quantidade : quantidade / 100;
   const proteina = round1(alimento.proteina * f);
   const carbo    = round1(alimento.carbo    * f);
   const gordura  = round1(alimento.gordura  * f);

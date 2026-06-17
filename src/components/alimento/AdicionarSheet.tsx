@@ -39,6 +39,7 @@ type Page = 'lista' | 'detalhe';
 
 const TABS = ['Alimentos', 'Refeições'];
 const QTD_INICIAL = 100;
+const qtdInicial = (unidade: string) => unidade === 'un' ? 1 : QTD_INICIAL;
 
 export function AdicionarSheet({
   visible, onClose, refeicaoId, dia, initialTab, onConfirmar, onSelectModelo,
@@ -140,7 +141,7 @@ export function AdicionarSheet({
     Keyboard.dismiss();
     hap.select();
     setSelecionado(a);
-    setQuantidade(QTD_INICIAL);
+    setQuantidade(qtdInicial(a.unidade));
     setPage('detalhe');
   };
 
@@ -254,7 +255,9 @@ export function AdicionarSheet({
                           </View>
                         </View>
                         <View style={styles.qtdBadge}>
-                          <Text style={styles.qtdBadgeText}>100{a.unidade}</Text>
+                          <Text style={styles.qtdBadgeText}>
+                            {a.unidade === 'un' ? 'por un.' : `100${a.unidade}`}
+                          </Text>
                         </View>
                       </Pressable>
                     );

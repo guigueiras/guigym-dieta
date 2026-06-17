@@ -100,7 +100,9 @@ function AlimentoCardBase({ id, onEditar }: Props) {
           </View>
 
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>por 100{alimento.unidade}</Text>
+            <Text style={styles.badgeText}>
+              {alimento.unidade === 'un' ? 'por unidade' : `por 100${alimento.unidade}`}
+            </Text>
           </View>
 
           <View style={styles.macrosRow}>

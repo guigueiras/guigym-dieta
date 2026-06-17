@@ -151,7 +151,9 @@ export function AlimentoFormModal({ visible, onClose, modo, alimentoId }: Props)
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>Macros (sempre em gramas)</Text>
+        <Text style={styles.label}>
+          {unidade === 'un' ? 'Macros por unidade (em gramas)' : 'Macros (sempre em gramas)'}
+        </Text>
         <View style={styles.macrosRow}>
           <MacroInput label="PROTEÍNA (g)" value={proteina} onChange={setProteina} cor={colors.macroProtein} />
           <MacroInput label="CARBO (g)"    value={carbo}    onChange={setCarbo}    cor={colors.macroCarb} />

@@ -20,6 +20,8 @@ export const colors = {
   dangerLight: '#FEE2E2',
 
   warning: '#F59E0B',
+  warningLight: '#FEF3C7',
+  warningText: '#92400E',
 
   macroProtein: '#10B981',
   macroCarb: '#3B82F6',

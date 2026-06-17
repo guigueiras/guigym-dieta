@@ -14,15 +14,16 @@ interface Props {
 
 function UnidadeHintBase({ unidade }: Props) {
   const isLiquido = unidade === 'ml';
+  const isUnidade = unidade === 'un';
 
-  const opacity = useSharedValue(isLiquido ? 1 : 0.85);
+  const opacity = useSharedValue(isLiquido || isUnidade ? 1 : 0.85);
 
   useEffect(() => {
-    opacity.value = withTiming(isLiquido ? 1 : 0.85, {
+    opacity.value = withTiming(isLiquido || isUnidade ? 1 : 0.85, {
       duration: 220,
       easing: Easing.out(Easing.cubic),
     });
-  }, [isLiquido]);
+  }, [isLiquido, isUnidade]);
 
   const opacityStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -36,23 +37,34 @@ function UnidadeHintBase({ unidade }: Props) {
       style={[
         styles.wrap,
         isLiquido && styles.wrapLiquido,
+        isUnidade && styles.wrapUnidade,
         opacityStyle,
       ]}
     >
-      <View style={[styles.iconWrap, isLiquido && styles.iconWrapLiquido]}>
+      <View style={[
+        styles.iconWrap,
+        isLiquido && styles.iconWrapLiquido,
+        isUnidade && styles.iconWrapUnidade,
+      ]}>
         <Info
           size={14}
-          color={isLiquido ? colors.primary : colors.textSecondary}
+          color={isUnidade ? colors.warning : isLiquido ? colors.primary : colors.textSecondary}
           strokeWidth={2.4}
         />
       </View>
       <View style={styles.textWrap}>
-        <Text style={[styles.titulo, isLiquido && styles.tituloLiquido]}>
-          {isLiquido ? 'Valores por 100ml' : 'Valores por 100g'}
+        <Text style={[
+          styles.titulo,
+          isLiquido && styles.tituloLiquido,
+          isUnidade && styles.tituloUnidade,
+        ]}>
+          {isUnidade ? 'Valores por 1 unidade' : isLiquido ? 'Valores por 100ml' : 'Valores por 100g'}
         </Text>
         <Text style={styles.subtitulo}>
-          Proteína, carbo e gordura são sempre em <Text style={styles.bold}>gramas</Text>
-          {isLiquido ? ', mesmo para líquidos' : ''}.
+          {isUnidade
+            ? 'Insira os macros de 1 unidade (ex: 1 banana). Os valores podem ser imprecisos pois o tamanho varia.'
+            : <>Proteína, carbo e gordura são sempre em <Text style={styles.bold}>gramas</Text>{isLiquido ? ', mesmo para líquidos' : ''}.</>
+          }
         </Text>
       </View>
     </Animated.View>
@@ -77,6 +89,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     borderColor: 'transparent',
   },
+  wrapUnidade: {
+    backgroundColor: colors.warningLight,
+    borderColor: 'transparent',
+  },
   iconWrap: {
     width: 22,
     height: 22,
@@ -86,9 +102,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 1,
   },
-  iconWrapLiquido: {
-    backgroundColor: '#FFFFFF',
-  },
+  iconWrapLiquido: { backgroundColor: '#FFFFFF' },
+  iconWrapUnidade: { backgroundColor: '#FFFFFF' },
   textWrap: { flex: 1, gap: 2 },
   titulo: {
     fontSize: 13,
@@ -96,9 +111,8 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.1,
   },
-  tituloLiquido: {
-    color: colors.primaryText,
-  },
+  tituloLiquido: { color: colors.primaryText },
+  tituloUnidade: { color: colors.warningText },
   subtitulo: {
     fontSize: 12,
     color: colors.textSecondary,

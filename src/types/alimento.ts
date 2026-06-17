@@ -1,6 +1,6 @@
 import type { CategoriaId } from '@/constants/categorias';
 
-export type UnidadeMedida = 'g' | 'ml';
+export type UnidadeMedida = 'g' | 'ml' | 'un';
 
 export const UNIDADE_PADRAO: UnidadeMedida = 'g';
 
@@ -9,9 +9,9 @@ export const UNIDADE_PADRAO: UnidadeMedida = 'g';
  *
  * REGRAS INVARIANTES:
  *  - Macros (proteina/carbo/gordura) SEMPRE são do alimento preparado/pronto.
- *  - `possuiFator: false` ⇒ `fatorPreparo` deve ser `null` (enforced no repository).
- *  - `possuiFator: true` ⇒ `fatorPreparo` é o coeficiente:
- *      pesoPreparado = pesoCru × fatorPreparo
+ *  - `possuiFator: false` => `fatorPreparo` deve ser `null` (enforced no repository).
+ *  - `possuiFator: true` => `fatorPreparo` é o coeficiente:
+ *      pesoPreparado = pesoCru x fatorPreparo
  *      pesoCru       = pesoPreparado / fatorPreparo
  *  - `possuiFator: true` com `fatorPreparo: null` é estado "configuração pendente":
  *      a lista de compras usa o peso preparado direto (fallback seguro).
@@ -31,9 +31,11 @@ export interface Alimento {
 export const UNIDADE_LABEL: Record<UnidadeMedida, string> = {
   g: 'g',
   ml: 'ml',
+  un: 'un.',
 };
 
 export const UNIDADE_LABEL_GRANDE: Record<UnidadeMedida, string> = {
   g: 'kg',
   ml: 'L',
+  un: 'un.',
 };

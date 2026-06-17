@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { ChevronLeft } from 'lucide-react-native';
@@ -21,7 +21,7 @@ export function DetalheAlimentoQuantidade({
 }: Props) {
   const inputRef = useRef<QuantidadeInputGrandeRef>(null);
 
-  const macrosBase = calcMacros(alimento, 100);
+  const macrosBase = calcMacros(alimento, alimento.unidade === 'un' ? 1 : 100);
   const macrosTotal = calcMacros(alimento, quantidade);
 
   return (
@@ -49,7 +49,9 @@ export function DetalheAlimentoQuantidade({
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View entering={FadeIn.duration(200)} style={styles.cardBase}>
-          <Text style={styles.cardTitulo}>Valores por 100{alimento.unidade}:</Text>
+          <Text style={styles.cardTitulo}>
+            {alimento.unidade === 'un' ? 'Valores por 1 unidade:' : `Valores por 100${alimento.unidade}:`}
+          </Text>
           <View style={styles.macrosRow}>
             <MacroColuna label="Proteína" valor={macrosBase.proteina} cor={colors.macroProtein} />
             <MacroColuna label="Carbo"    valor={macrosBase.carbo}    cor={colors.macroCarb} />
@@ -59,7 +61,9 @@ export function DetalheAlimentoQuantidade({
 
         <Animated.View entering={FadeIn.duration(220).delay(60)} style={styles.inputBlock}>
           <Text style={styles.inputLabel}>
-            Quantidade ({alimento.unidade === 'ml' ? 'mililitros' : 'gramas'})
+            {alimento.unidade === 'un'
+              ? 'Quantidade (unidades)'
+              : `Quantidade (${alimento.unidade === 'ml' ? 'mililitros' : 'gramas'})`}
           </Text>
           <QuantidadeInputGrande
             ref={inputRef}
@@ -67,7 +71,7 @@ export function DetalheAlimentoQuantidade({
             onCommit={onChangeQuantidade}
             min={1}
             max={9999}
-            step={5}
+            step={alimento.unidade === 'un' ? 1 : 5}
             autoFocus={visible}
             focusDelayMs={340}
           />
@@ -75,7 +79,10 @@ export function DetalheAlimentoQuantidade({
 
         <Animated.View entering={FadeIn.duration(220).delay(120)} style={styles.cardTotal}>
           <Text style={styles.cardTituloTotal}>
-            Total com <Text style={styles.cardTituloTotalBold}>{quantidade}{alimento.unidade}</Text>:
+            {alimento.unidade === 'un'
+              ? <>Total com <Text style={styles.cardTituloTotalBold}>{quantidade} un.</Text>:</>
+              : <>Total com <Text style={styles.cardTituloTotalBold}>{quantidade}{alimento.unidade}</Text>:</>
+            }
           </Text>
           <View style={styles.macrosRow}>
             <MacroColuna label="Proteína" valor={macrosTotal.proteina} cor={colors.macroProtein} />

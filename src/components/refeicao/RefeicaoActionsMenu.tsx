@@ -10,7 +10,6 @@ interface Props {
   dia: DiaSemana;
   refeicaoId: string;
   refeicaoNome: string;
-  /** Se true, a opção "Excluir" fica desabilitada (proteção contra deletar a única refeição). */
   podeExcluir: boolean;
   onClose: () => void;
   onRenomear: () => void;
@@ -85,12 +84,7 @@ export function RefeicaoActionsMenu({
               pressed && podeExcluir && styles.itemPressed,
             ]}
           >
-            <Text
-              style={[
-                styles.itemText,
-                podeExcluir ? styles.danger : styles.disabled,
-              ]}
-            >
+            <Text style={[styles.itemText, podeExcluir ? styles.danger : styles.disabled]}>
               Excluir
             </Text>
           </Pressable>

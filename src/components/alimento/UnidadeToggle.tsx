@@ -13,8 +13,9 @@ interface Props {
 }
 
 const OPCOES: Array<{ id: UnidadeMedida; label: string }> = [
-  { id: 'g',  label: 'g'  },
-  { id: 'ml', label: 'ml' },
+  { id: 'g',  label: 'g'   },
+  { id: 'ml', label: 'ml'  },
+  { id: 'un', label: 'un.' },
 ];
 
 const HEIGHT = 46;
@@ -25,13 +26,13 @@ export function UnidadeToggle({ value, onChange }: Props) {
 
   useEffect(() => {
     if (containerW === 0) return;
-    const segW = (containerW - 4) / 2;
+    const segW = (containerW - 4) / OPCOES.length;
     const idx = OPCOES.findIndex((o) => o.id === value);
     indicatorX.value = withSpring(idx * segW, { damping: 22, stiffness: 240, mass: 0.8 });
   }, [value, containerW]);
 
   const indicatorStyle = useAnimatedStyle(() => {
-    const segW = containerW > 0 ? (containerW - 4) / 2 : 0;
+    const segW = containerW > 0 ? (containerW - 4) / OPCOES.length : 0;
     return {
       width: segW,
       transform: [{ translateX: indicatorX.value }],
@@ -56,7 +57,7 @@ export function UnidadeToggle({ value, onChange }: Props) {
             }}
             accessibilityRole="button"
             accessibilityState={{ selected: ativo }}
-            accessibilityLabel={`Unidade ${o.label === 'g' ? 'gramas' : 'mililitros'}`}
+            accessibilityLabel={`Unidade ${o.id === 'g' ? 'gramas' : o.id === 'ml' ? 'mililitros' : 'unidade'}`}
           >
             <SegText label={o.label} ativo={ativo} />
           </Pressable>
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     left: 2,
-    height: HEIGHT - 4 - 2 - 2,
+    height: HEIGHT - 8,
     backgroundColor: colors.primary,
     borderRadius: radii.md - 4,
     shadowColor: colors.primary,
