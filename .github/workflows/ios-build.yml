@@ -20,8 +20,10 @@ jobs:
         run: npm ci
 
       - name: Run Expo Doctor
-        continue-on-error: true
         run: npx expo-doctor
 
       - name: Generate iOS project
         run: npx expo prebuild --platform ios
+
+      - name: Verify generated project
+        run: ls -la ios
