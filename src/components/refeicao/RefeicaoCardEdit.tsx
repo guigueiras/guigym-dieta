@@ -40,7 +40,7 @@ function RefeicaoCardEditBase({
 
   // Quantidade de refeições no dia — pra decidir se "Excluir" fica habilitado.
   const totalRefeicoesDoDia = useEditDietaStore(
-    (s) => s.dietaEditada?.dias.find((d) => d.nome === dia)?.refeicoes.length ?? 0
+    (s) => s.dietaEditada?.semanas.find((sem) => sem.numero === s.semanaAtiva)?.dias.find((d) => d.nome === dia)?.refeicoes.length ?? 0
   );
 
   const { adicionarAlimento } = useModelosActions();

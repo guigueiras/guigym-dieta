@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Keyboard, InteractionManager } from 'react-native';
+import { View, StyleSheet, Keyboard, InteractionManager, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, { FadeInRight, FadeOutRight } from 'react-native-reanimated';
@@ -11,6 +11,7 @@ import { Save } from 'lucide-react-native';
 import { colors, spacing } from '@/theme/colors';
 import { HeaderDieta } from '@/components/ui/HeaderDieta';
 import { DiasTabs } from '@/components/ui/DiasTabs';
+import { SemanaSelector } from '@/components/ui/SemanaSelector';
 import { ModoEdicaoBanner } from '@/components/refeicao/ModoEdicaoBanner';
 import { RefeicaoCardEdit } from '@/components/refeicao/RefeicaoCardEdit';
 import { AdicionarRefeicaoButton } from '@/components/refeicao/AdicionarRefeicaoButton';
@@ -24,7 +25,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useDieta } from '@/stores/useDietasStore';
 import {
   useEditDietaStore, useEditActions, useEditIsDirty,
-  useEditSaving, useEditDiaAtivo, useEditRefeicoesDoDia,
+  useEditSaving, useEditDiaAtivo, useEditSemanaAtiva, useEditRefeicoesDoDia,
 } from '@/stores/useEditDietaStore';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { useElementHeight } from '@/hooks/useElementHeight';
@@ -38,11 +39,12 @@ export default function DietaEditar() {
   const dieta = useDieta(id);
 
   const {
-    iniciar, setDiaAtivo, descartar, salvar,
+    iniciar, setDiaAtivo, setSemanaAtiva, descartar, salvar,
     addRefeicao, reorderRefeicoes, addAlimentoNaRefeicao,
   } = useEditActions();
 
   const diaAtivo = useEditDiaAtivo();
+  const semanaAtiva = useEditSemanaAtiva();
   const isDirty = useEditIsDirty();
   const saving = useEditSaving();
   const refeicoes = useEditRefeicoesDoDia(diaAtivo);
@@ -79,7 +81,7 @@ export default function DietaEditar() {
 
   useEffect(() => {
     if (!scrollToRefId || !listRef.current) return;
-    const idx = refeicoes.findIndex((r) => r.id === scrollToRefId);
+    const idx = refeicoes.findIndex((r: Refeicao) => r.id === scrollToRefId);
     if (idx >= 0) {
       InteractionManager.runAfterInteractions(() => {
         try {
@@ -93,6 +95,11 @@ export default function DietaEditar() {
   const handleChangeDia = (d: DiaSemana) => {
     hap.select();
     setDiaAtivo(d);
+  };
+
+  const handleChangeSemana = (n: number) => {
+    setSemanaAtiva(n);
+    setDiaAtivo('segunda');
   };
 
   const handleAddRefeicao = () => {
@@ -132,8 +139,10 @@ export default function DietaEditar() {
       hap.add();
       setToastVisible(true);
       setTimeout(() => router.back(), 850);
-    } catch {
+    } catch (e) {
+      console.error('[handleSalvar] falhou:', e);
       hap.error();
+      Alert.alert('Erro ao salvar', String(e));
     }
   };
 
@@ -167,6 +176,14 @@ export default function DietaEditar() {
         banner={<View onLayout={onBannerLayout}><ModoEdicaoBanner /></View>}
       />
 
+      {dieta.semanas.length > 1 && (
+        <SemanaSelector
+          semanaAtiva={semanaAtiva}
+          totalSemanas={dieta.semanas.length}
+          duracao={dieta.duracao}
+          onChange={handleChangeSemana}
+        />
+      )}
       <DiasTabs valor={diaAtivo} onChange={handleChangeDia} />
 
       <View style={styles.listWrap}>

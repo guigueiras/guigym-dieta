@@ -6,22 +6,43 @@ import { useAlimentosStore } from '@/stores/useAlimentosStore';
 import { calcMacros, somarMacros } from '@/utils/macros';
 import type { DiaSemana } from '@/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MacroRing } from './MacroRing';
 
 interface Props {
   dietaId: string;
   dia: DiaSemana;
+  semanaNumero?: number;
 }
 
-export function TotalDiaFooter({ dietaId, dia }: Props) {
+// ─── Paleta semafórica pastel ────────────────────────────────
+// < 50%    → vermelho
+// 50–96%   → amarelo
+// 97–103%  → verde
+// > 103%   → amarelo
+// > 115%   → vermelho
+
+const TIER = {
+  green:  { bg: '#DCFCE7', border: '#86EFAC' },
+  yellow: { bg: '#FEF9C3', border: '#FDE047' },
+  red:    { bg: '#FEE2E2', border: '#FCA5A5' },
+  none:   { bg: '#FFFFFF', border: colors.border },
+} as const;
+
+type TierKey = keyof typeof TIER;
+
+function getTier(pct: number): TierKey {
+  if (!Number.isFinite(pct) || pct < 50) return 'red';
+  if (pct > 115) return 'red';
+  if (pct >= 97 && pct <= 103) return 'green';
+  return 'yellow';
+}
+
+export function TotalDiaFooter({ dietaId, dia, semanaNumero = 1 }: Props) {
   const insets = useSafeAreaInsets();
 
   const refeicoes = useDietasStore(
-    (s) => s.byId[dietaId]?.dias.find((d) => d.nome === dia)?.refeicoes
+    (s) => s.byId[dietaId]?.semanas.find((sem) => sem.numero === semanaNumero)?.dias.find((d) => d.nome === dia)?.refeicoes
   );
-
   const targets = useDietasStore((s) => s.byId[dietaId]?.targets);
-
   const alimentosBase = useAlimentosStore((s) => s.byId);
 
   const total = useMemo(() => {
@@ -36,75 +57,43 @@ export function TotalDiaFooter({ dietaId, dia }: Props) {
     return somarMacros(lista);
   }, [refeicoes, alimentosBase]);
 
-  // Calcula % de progresso por macro quando há meta. Sem meta → undefined.
-  const progress = useMemo(() => {
-    if (!targets) return undefined;
+  const tiers = useMemo(() => {
+    if (!targets) return null;
+    const pct = (v: number, t: number) => t > 0 ? (v / t) * 100 : 0;
     return {
-      proteina: calcPercent(total.proteina, targets.proteinG),
-      carbo: calcPercent(total.carbo, targets.carbG),
-      gordura: calcPercent(total.gordura, targets.fatG),
-      calorias: calcPercent(total.calorias, targets.calories),
+      proteina: getTier(pct(total.proteina, targets.proteinG)),
+      carbo:    getTier(pct(total.carbo,    targets.carbG)),
+      gordura:  getTier(pct(total.gordura,  targets.fatG)),
+      calorias: getTier(pct(total.calorias, targets.calories)),
     };
   }, [targets, total]);
 
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
       <Text style={styles.titulo}>Total do Dia</Text>
-      {targets ? (
-        <View style={styles.grid}>
-          <View style={styles.row}>
-            <CardMacro label="Proteína" valor={`${total.proteina}g`} cor={colors.macroProtein} percent={progress?.proteina} />
-            <CardMacro label="Gordura" valor={`${total.gordura}g`} cor={colors.macroFat} percent={progress?.gordura} />
-          </View>
-          <View style={styles.row}>
-            <CardMacro label="Carbo" valor={`${total.carbo}g`} cor={colors.macroCarb} percent={progress?.carbo} />
-            <CardMacro label="Calorias" valor={`${total.calorias}`} cor={colors.macroCal} percent={progress?.calorias} />
-          </View>
-        </View>
-      ) : (
-        <View style={styles.rowSingle}>
-          <CardMacro label="Proteína" valor={`${total.proteina}g`} cor={colors.macroProtein} compact />
-          <CardMacro label="Gordura" valor={`${total.gordura}g`} cor={colors.macroFat} compact />
-          <CardMacro label="Carbo" valor={`${total.carbo}g`} cor={colors.macroCarb} compact />
-          <CardMacro label="Calorias" valor={`${total.calorias}`} cor={colors.macroCal} compact />
-        </View>
-      )}
+      <View style={styles.row}>
+        <CardMacro label="Proteína" valor={`${total.proteina}g`} cor={colors.macroProtein} tier={tiers?.proteina} />
+        <CardMacro label="Carbo"    valor={`${total.carbo}g`}    cor={colors.macroCarb}    tier={tiers?.carbo} />
+        <CardMacro label="Gordura"  valor={`${total.gordura}g`}  cor={colors.macroFat}     tier={tiers?.gordura} />
+        <CardMacro label="Calorias" valor={`${total.calorias}`}  cor={colors.macroCal}     tier={tiers?.calorias} />
+      </View>
     </View>
   );
 }
 
-function calcPercent(atual: number, alvo: number): number {
-  if (!Number.isFinite(alvo) || alvo <= 0) return 0;
-  return (atual / alvo) * 100;
-}
-
-interface CardProps {
+function CardMacro({
+  label, valor, cor, tier,
+}: {
   label: string;
   valor: string;
   cor: string;
-  /** Percentual de progresso vs alvo. Undefined = sem meta (não renderiza o anel). */
-  percent?: number;
-  /** Layout compacto para o grid 1×4 (sem meta). */
-  compact?: boolean;
-}
-
-function CardMacro({ label, valor, cor, percent, compact }: CardProps) {
+  tier?: TierKey;
+}) {
+  const palette = TIER[tier ?? 'none'];
   return (
-    <View style={styles.card}>
-      <View style={styles.cardTextCol}>
-        <Text style={styles.cardLabel} numberOfLines={1}>{label}</Text>
-        <Text
-          style={[styles.cardValor, { color: cor, fontSize: compact ? 15 : 18 }]}
-          numberOfLines={1}
-        >
-          {valor}
-        </Text>
-      </View>
-      {percent !== undefined && (
-        <View style={styles.cardRingCol}>
-          <MacroRing percent={percent} />
-        </View>
-      )}
+    <View style={[styles.card, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      <Text style={[styles.cardValor, { color: cor }]}>{valor}</Text>
     </View>
   );
 }
@@ -124,37 +113,15 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   titulo: { fontSize: 14, fontWeight: '700', color: colors.text, letterSpacing: -0.1 },
-  grid: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
-  rowSingle: { flexDirection: 'row', gap: spacing.sm },
   card: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
     borderRadius: 10,
     paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    gap: 2,
+    borderWidth: 1,
   },
-  cardLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-  },
-  cardTextCol: {
-    flex: 1,
-    gap: 4,
-  },
-  cardRingCol: {
-    flexShrink: 0,
-  },
-  cardValor: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
+  cardLabel: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
+  cardValor: { fontSize: 15, fontWeight: '700' },
 });

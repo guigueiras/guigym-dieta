@@ -31,6 +31,8 @@ function formatDelta(delta: CalorieDelta): string {
       return `Superávit de ${delta.amount} kcal/dia`;
     case 'maintenance':
       return 'Meta de manutenção';
+    default:
+      return '';
   }
 }
 
@@ -41,6 +43,8 @@ function colorForDelta(kind: CalorieDelta['kind']): string {
     case 'surplus':
       return colors.successText;
     case 'maintenance':
+      return colors.textSecondary;
+    default:
       return colors.textSecondary;
   }
 }

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { useShallow } from 'zustand/react/shallow';
-import type { Dieta, DietTargets } from '@/types';
+import type { Dieta, DietTargets, DuracaoConfig } from '@/types';
 import { matchTermo } from '@/utils/text';
 import * as repo from '@/db/repositories/dietasRepo';
 
@@ -14,7 +14,7 @@ interface DietasState {
    * Cria nova dieta com nome obrigatório e targets opcionais.
    * Se targets for fornecido, o tipo é derivado do goal automaticamente.
    */
-  criar: (nome: string, targets?: DietTargets) => Promise<string>;
+  criar: (nome: string, duracao?: DuracaoConfig, targets?: DietTargets) => Promise<string>;
   /**
    * Renomeia uma dieta. Não toca em tipo ou targets — pra editar a meta,
    * usar setTargets separadamente.
@@ -46,8 +46,8 @@ export const useDietasStore = create<DietasState>((set, get) => ({
     set({ byId, ids, loaded: true });
   },
 
-  criar: async (nome, targets) => {
-    const dieta = await repo.criar(nome, targets);
+  criar: async (nome, duracao, targets) => {
+    const dieta = await repo.criar(nome, duracao, targets);
     set((s) => ({ byId: { ...s.byId, [dieta.id]: dieta }, ids: [dieta.id, ...s.ids] }));
     return dieta.id;
   },

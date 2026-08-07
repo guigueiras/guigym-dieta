@@ -14,8 +14,3 @@ export function formatQuantidade(qty: number, unidade: UnidadeMedida = 'g'): str
 
   return `${Math.round(qty)}${unidade}`;
 }
-
-/** @deprecated Usar formatQuantidade(qty, unidade) */
-export function formatGramas(g: number): string {
-  return formatQuantidade(g, 'g');
-}

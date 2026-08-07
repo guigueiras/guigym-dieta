@@ -13,15 +13,15 @@ interface Props {
   percent: number;
   /** Tamanho total do anel em pt. Default 42. */
   size?: number;
-  /** Espessura do traço em pt. Default 4. */
+  /** Espessura do traço em pt. Default 6. */
   strokeWidth?: number;
 }
 
 // Faixas semafóricas
-const RED_LOW = 50;      // < 50%  → vermelho (muito abaixo)
-const YELLOW_HIGH = 85;  // 50–84% → amarelo  (longe ainda)
-const GREEN_HIGH = 115;  // 85–115% → verde   (dentro do alvo)
-                         // > 115% → vermelho (excedeu)
+const RED_LOW = 50;       // < 50%    → vermelho
+const GREEN_LOW = 97;     // 50–96%   → amarelo
+const GREEN_HIGH = 103;   // 97–103%  → verde
+const RED_HIGH = 115;     // 104–115% → amarelo, > 115% → vermelho
 
 /**
  * Anel circular de progresso com % central e cores semafóricas.
@@ -42,7 +42,7 @@ const GREEN_HIGH = 115;  // 85–115% → verde   (dentro do alvo)
  * do percent inicial) — só o useEffect comanda animações. Evita conflito
  * de inicialização + animação simultâneas em remontagens rápidas no Fabric.
  */
-export function MacroRing({ percent, size = 42, strokeWidth = 4 }: Props) {
+export function MacroRing({ percent, size = 42, strokeWidth = 5 }: Props) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
 
@@ -116,9 +116,9 @@ export function MacroRing({ percent, size = 42, strokeWidth = 4 }: Props) {
 function colorForPercent(percent: number): string {
   if (!Number.isFinite(percent) || percent < 0) return colors.danger;
   if (percent < RED_LOW) return colors.danger;
-  if (percent < YELLOW_HIGH) return colors.warning;
-  if (percent <= GREEN_HIGH) return colors.successText;
-  return colors.danger;
+  if (percent > RED_HIGH) return colors.danger;
+  if (percent >= GREEN_LOW && percent <= GREEN_HIGH) return colors.successText;
+  return colors.warning;
 }
 
 function formatPercent(percent: number): string {

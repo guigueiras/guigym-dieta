@@ -14,12 +14,13 @@ interface Props {
   dietaId: string;
   dia: DiaSemana;
   refeicaoId: string;
+  semanaNumero?: number;
 }
 
-function RefeicaoCardViewBase({ dietaId, dia, refeicaoId }: Props) {
+function RefeicaoCardViewBase({ dietaId, dia, refeicaoId, semanaNumero = 1 }: Props) {
   const { nome, alimentos } = useDietasStore(
     useShallow((s) => {
-      const ref = s.byId[dietaId]?.dias.find((d) => d.nome === dia)
+      const ref = s.byId[dietaId]?.semanas.find((sem) => sem.numero === semanaNumero)?.dias.find((d) => d.nome === dia)
         ?.refeicoes.find((r) => r.id === refeicaoId);
       return {
         nome: ref?.nome ?? '',

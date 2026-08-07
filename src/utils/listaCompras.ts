@@ -48,13 +48,15 @@ export function gerarListaCompras(
 ): GrupoCompra[] {
   const totaisPreparado = new Map<string, number>();
 
-  for (const dia of dieta.dias) {
+  for (const semana of dieta.semanas) {
+  for (const dia of semana.dias) {
     for (const refeicao of dia.refeicoes) {
       for (const item of refeicao.alimentos) {
         const atual = totaisPreparado.get(item.alimentoId) ?? 0;
         totaisPreparado.set(item.alimentoId, atual + item.quantidade);
       }
     }
+  }
   }
 
   if (totaisPreparado.size === 0) return [];

@@ -14,21 +14,23 @@ interface Props {
 export function HeaderDieta({ titulo, onBack, actions, banner }: Props) {
   return (
     <View style={styles.wrap}>
-      <Pressable
-        onPress={() => { hap.tap(); onBack(); }}
-        hitSlop={12}
-        style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
-      >
-        <ChevronLeft size={20} color={colors.primary} strokeWidth={2.4} />
-        <Text style={styles.backText}>Voltar</Text>
-      </Pressable>
+      <View style={styles.navRow}>
+        <Pressable
+          onPress={() => { hap.tap(); onBack(); }}
+          hitSlop={8}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.backBtnPressed]}
+        >
+          <ChevronLeft size={22} color={colors.primary} strokeWidth={2.6} />
+        </Pressable>
 
-      {!!titulo && (
-        <View style={styles.row}>
+        {!!titulo && (
           <Text style={styles.titulo} numberOfLines={1}>{titulo}</Text>
-          {actions ? <View style={styles.actions}>{actions}</View> : null}
-        </View>
-      )}
+        )}
+
+        {actions
+          ? <View style={styles.actions}>{actions}</View>
+          : <View style={styles.actionPlaceholder} />}
+      </View>
 
       {banner}
     </View>
@@ -42,29 +44,28 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     gap: spacing.md,
   },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   backBtn: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 2,
-    paddingVertical: 4,
-    paddingRight: 8,
-    marginLeft: -4,
+    justifyContent: 'center',
   },
-  backBtnPressed: { opacity: 0.5 },
-  backText: { color: colors.primary, fontSize: 16, fontWeight: '500' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
+  backBtnPressed: { opacity: 0.6 },
   titulo: {
     flex: 1,
-    fontSize: 26,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+    textAlign: 'center',
   },
   actions: { flexDirection: 'row' },
+  actionPlaceholder: { width: 40 },
 });

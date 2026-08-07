@@ -237,6 +237,146 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    versao: 10,
+    up: async (db) => {
+      // Detecção de estado: fresh install já tem refeicoes com semana_id
+      const refCols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(refeicoes)');
+      const hasSemanaId = refCols.some((c) => c.name === 'semana_id');
+      if (hasSemanaId) {
+        // Fresh install: schema já correto, só garante o index
+        await db.execAsync(
+          'CREATE INDEX IF NOT EXISTS idx_refeicoes_semana_dia ON refeicoes(semana_id, dia);'
+        );
+        return;
+      }
+
+      // --- Banco existente: schema antigo com dieta_id ---
+
+      // 1. Adiciona colunas de duração na tabela dietas (idempotente)
+      const dietaCols = await db.getAllAsync<{ name: string }>('PRAGMA table_info(dietas)');
+      const colNames = dietaCols.map((c) => c.name);
+      if (!colNames.includes('duracao_tipo'))
+        await db.runAsync(`ALTER TABLE dietas ADD COLUMN duracao_tipo TEXT NOT NULL DEFAULT 'indefinida'`);
+      if (!colNames.includes('duracao_quantidade'))
+        await db.runAsync(`ALTER TABLE dietas ADD COLUMN duracao_quantidade INTEGER`);
+      if (!colNames.includes('duracao_dia_inicio'))
+        await db.runAsync(`ALTER TABLE dietas ADD COLUMN duracao_dia_inicio TEXT`);
+
+      // 2. Cria tabela semanas
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS semanas (
+          id TEXT PRIMARY KEY,
+          dieta_id TEXT NOT NULL,
+          numero INTEGER NOT NULL,
+          FOREIGN KEY (dieta_id) REFERENCES dietas(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_semanas_dieta ON semanas(dieta_id);
+      `);
+
+      // 3. Cria uma semana (numero=1) para cada dieta existente
+      const dietas = await db.getAllAsync<{ id: string }>('SELECT id FROM dietas');
+      const semanaMap = new Map<string, string>();
+      for (const dieta of dietas) {
+        // Idempotente: reaproveita semana existente se já foi criada
+        const existente = await db.getFirstAsync<{ id: string }>(
+          'SELECT id FROM semanas WHERE dieta_id = ? AND numero = 1', [dieta.id]
+        );
+        const semanaId = existente?.id ?? nanoid();
+        if (!existente) {
+          await db.runAsync(
+            'INSERT INTO semanas (id, dieta_id, numero) VALUES (?, ?, 1)',
+            [semanaId, dieta.id]
+          );
+        }
+        semanaMap.set(dieta.id, semanaId);
+      }
+
+      // 4. Cria nova tabela refeicoes com semana_id
+      await db.execAsync(`
+        DROP TABLE IF EXISTS refeicoes_new;
+        CREATE TABLE refeicoes_new (
+          id TEXT PRIMARY KEY,
+          semana_id TEXT NOT NULL,
+          dia TEXT NOT NULL CHECK(dia IN ('segunda','terca','quarta','quinta','sexta','sabado','domingo')),
+          nome TEXT NOT NULL,
+          ordem INTEGER NOT NULL,
+          dia_indice INTEGER,
+          FOREIGN KEY (semana_id) REFERENCES semanas(id) ON DELETE CASCADE
+        );
+      `);
+
+      // 5. Migra dados via semanaMap
+      const refeicoes = await db.getAllAsync<{
+        id: string; dieta_id: string; dia: string; nome: string; ordem: number;
+      }>('SELECT id, dieta_id, dia, nome, ordem FROM refeicoes');
+
+      for (const r of refeicoes) {
+        const semanaId = semanaMap.get(r.dieta_id);
+        if (!semanaId) continue;
+        await db.runAsync(
+          'INSERT OR IGNORE INTO refeicoes_new (id, semana_id, dia, nome, ordem) VALUES (?, ?, ?, ?, ?)',
+          [r.id, semanaId, r.dia, r.nome, r.ordem]
+        );
+      }
+
+      // 6. Troca as tabelas via rename.
+      // ATENÇÃO: SQLite 3.26+ auto-atualiza FKs em outras tabelas quando uma tabela
+      // é renomeada. O rename de refeicoes→backup vai reescrever o FK em
+      // alimentos_refeicao para REFERENCES refeicoes_v9_backup(id). Por isso, a
+      // migração v11 reconstrói alimentos_refeicao com o FK correto.
+      await db.execAsync(`
+        ALTER TABLE refeicoes RENAME TO refeicoes_v9_backup;
+        ALTER TABLE refeicoes_new RENAME TO refeicoes;
+        DROP TABLE refeicoes_v9_backup;
+        CREATE INDEX IF NOT EXISTS idx_refeicoes_semana_dia ON refeicoes(semana_id, dia);
+      `);
+    },
+  },
+  {
+    versao: 11,
+    up: async (db) => {
+      // Limpeza: drop do backup de v10 se sobrou por algum motivo
+      await db.execAsync('DROP TABLE IF EXISTS refeicoes_v9_backup;');
+
+      // Verifica se alimentos_refeicao tem FK quebrado (aponta para refeicoes_v9_backup)
+      // causado pelo auto-update de FK do SQLite 3.26+ durante o rename da migração v10.
+      const row = await db.getFirstAsync<{ sql: string }>(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='alimentos_refeicao'"
+      );
+      if (!row?.sql?.includes('refeicoes_v9_backup')) {
+        // FK já correto (fresh install ou banco não afetado) — nada a fazer
+        return;
+      }
+
+      // Reconstrói alimentos_refeicao com FK correto apontando para refeicoes
+      await db.execAsync('DROP TABLE IF EXISTS alimentos_refeicao_new;');
+      await db.execAsync(`
+        CREATE TABLE alimentos_refeicao_new (
+          id TEXT PRIMARY KEY,
+          refeicao_id TEXT NOT NULL,
+          alimento_id TEXT NOT NULL,
+          quantidade REAL NOT NULL,
+          ordem INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (refeicao_id) REFERENCES refeicoes(id) ON DELETE CASCADE,
+          FOREIGN KEY (alimento_id) REFERENCES alimentos(id) ON DELETE RESTRICT
+        );
+      `);
+      // Copia dados existentes (preserva alimentos já adicionados pelo usuário)
+      await db.execAsync(
+        'INSERT OR IGNORE INTO alimentos_refeicao_new SELECT * FROM alimentos_refeicao;'
+      );
+      await db.execAsync('DROP TABLE alimentos_refeicao;');
+      // Rename seguro: nenhuma outra tabela tem FK apontando para alimentos_refeicao_new,
+      // então o auto-update do SQLite 3.26+ não altera nada.
+      await db.execAsync(
+        'ALTER TABLE alimentos_refeicao_new RENAME TO alimentos_refeicao;'
+      );
+      await db.execAsync(
+        'CREATE INDEX IF NOT EXISTS idx_alim_ref_refeicao ON alimentos_refeicao(refeicao_id);'
+      );
+    },
+  },
 ];
 
 export async function runMigrations(db: SQLiteDatabase) {

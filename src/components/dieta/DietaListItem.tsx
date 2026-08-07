@@ -28,7 +28,7 @@ function DietaListItemBase({ id }: Props) {
 
   const abrir = () => {
     hap.tap();
-    router.push(`/dieta/${id}` as any);
+    router.push({ pathname: '/dieta/[id]', params: { id } });
   };
 
   const abrirMenu = () => {

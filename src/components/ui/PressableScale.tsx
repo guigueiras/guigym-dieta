@@ -1,4 +1,4 @@
-import { Pressable, type PressableProps } from 'react-native';
+import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withTiming, Easing,
 } from 'react-native-reanimated';
@@ -10,7 +10,7 @@ interface Props extends Omit<PressableProps, 'children' | 'style'> {
   children: ReactNode;
   scaleTo?: number;
   duration?: number;
-  style?: any;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function PressableScale({

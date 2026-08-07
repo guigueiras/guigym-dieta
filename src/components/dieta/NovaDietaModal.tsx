@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, Keyboard, Modal } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Keyboard, Modal, Pressable } from 'react-native';
 import { Target, Pencil, Trash2 } from 'lucide-react-native';
 import { colors, radii, spacing } from '@/theme/colors';
 import { Button } from '@/components/ui/Button';
@@ -7,7 +7,7 @@ import { ResponsiveModal } from '@/components/ui/ResponsiveModal';
 import { useDietasActions, useDieta } from '@/stores/useDietasStore';
 import { useUserProfileActions } from '@/stores/useUserProfileStore';
 import { hap } from '@/utils/haptics';
-import type { DietTargets } from '@/types';
+import type { DietTargets, DuracaoConfig } from '@/types';
 import type { UserProfile } from '@/types/userProfile';
 import { WizardContainer } from '@/features/tdee-wizard/components/WizardContainer';
 
@@ -18,27 +18,22 @@ interface Props {
   dietaId?: string;
 }
 
+type DuracaoTipo = 'indefinida' | 'semanas' | 'dias';
+
+const DURACAO_OPCOES: { tipo: DuracaoTipo; label: string }[] = [
+  { tipo: 'indefinida', label: 'Indefinida' },
+  { tipo: 'semanas',   label: 'Semanas' },
+  { tipo: 'dias',      label: 'Dias' },
+];
+
+function buildDuracao(tipo: DuracaoTipo, qtdStr: string): DuracaoConfig {
+  if (tipo === 'indefinida') return { tipo: 'indefinida' };
+  const quantidade = Math.max(1, Math.min(tipo === 'semanas' ? 52 : 365, parseInt(qtdStr, 10) || 1));
+  return { tipo, quantidade, diaInicio: null };
+}
+
 /**
  * Modal de criação/edição de dieta.
- *
- * Fluxo (modo criar):
- *   1. Usuário digita o nome (obrigatório).
- *   2. Opcionalmente toca "Definir meta nutricional" → wizard sobe.
- *   3. Após "Aplicar meta" no wizard, retorna pro modal com targets+profile
- *      em memória (limbo — só persistem se a dieta for efetivamente criada).
- *   4. Toca "Criar dieta" → cria com nome+targets, salva profile.
- *   5. Cancelar (X ou Cancelar) descarta tudo, inclusive targets/profile.
- *
- * Fluxo (modo editar):
- *   1. Modal abre pré-preenchido com nome e meta (se houver) da dieta.
- *   2. Pode editar nome livremente.
- *   3. Tocar "Editar meta nutricional" abre wizard pré-preenchido com
- *      targets atuais — ao aplicar, atualiza a dieta diretamente.
- *   4. Pode remover a meta via botão "Remover meta" (sem confirmação extra).
- *   5. Tocar "Salvar" persiste só o nome (meta é gerenciada via wizard).
- *
- * Diferença-chave: no modo criar, a meta fica em limbo até "Criar dieta".
- * No modo editar, a meta é aplicada/removida imediatamente na dieta.
  */
 export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Props) {
   const dietaExistente = useDieta(dietaId);
@@ -48,19 +43,19 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
   const [nome, setNome] = useState('');
   const [salvando, setSalvando] = useState(false);
   const inputRef = useRef<TextInput>(null);
+  const qtdRef = useRef<TextInput>(null);
 
-  // Meta em limbo (modo criar). Ignorado no modo editar — a meta lá vem
-  // direto da dieta via dietaExistente.targets.
+  // Duração (só modo criar)
+  const [duracaoTipo, setDuracaoTipo] = useState<DuracaoTipo>('indefinida');
+  const [duracaoQtd, setDuracaoQtd] = useState('4');
+
+  // Meta em limbo (modo criar)
   const [pendingTargets, setPendingTargets] = useState<DietTargets | null>(null);
   const [pendingProfile, setPendingProfile] = useState<UserProfile | null>(null);
 
-  // Controla a visibilidade do wizard. Dois Modais nativos simultâneos
-  // travam no iOS — usamos `wizardTransition` pra esperar a animação
-  // de fechamento de um antes de abrir o outro.
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardTransition, setWizardTransition] = useState(false);
 
-  // No modo editar, os targets exibidos vêm da dieta. No modo criar, vêm do limbo.
   const targetsExibidos: DietTargets | null =
     modo === 'editar'
       ? dietaExistente?.targets ?? null
@@ -73,7 +68,8 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
     } else {
       setNome('');
     }
-    // Limpa o limbo a cada abertura — não persiste entre aberturas.
+    setDuracaoTipo('indefinida');
+    setDuracaoQtd('4');
     setPendingTargets(null);
     setPendingProfile(null);
     setWizardOpen(false);
@@ -81,18 +77,15 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
     const t = setTimeout(() => inputRef.current?.focus(), 260);
     return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]); // Intencional: captura nome/modo na abertura — não reage a mudanças de dietaExistente durante a sessão (causaria reset de wizardTransition enquanto o wizard ainda fecha)
+  }, [visible]);
 
   const podeConfirmar = nome.trim().length > 0 && !salvando;
 
-  // ─── Ações do wizard ───────────────────────────────────────
+  // ─── Wizard ────────────────────────────────────────────────
 
   const handleAbrirWizard = () => {
     hap.tap();
     Keyboard.dismiss();
-    // Fluxo de 2 passos pra evitar conflito de dois Modais simultâneos:
-    //  1. Marca transição → ResponsiveModal começa a fechar (animação ~300ms)
-    //  2. Após delay, abre o wizard
     setWizardTransition(true);
     setTimeout(() => {
       setWizardOpen(true);
@@ -100,36 +93,24 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
     }, 320);
   };
 
-  // Modo criar: recebe targets+profile do wizard pré-cálculo
-  const handleResultadoPreCalculo = (data: {
-    targets: DietTargets;
-    profile: UserProfile;
-  }) => {
+  const handleResultadoPreCalculo = (data: { targets: DietTargets; profile: UserProfile }) => {
     setPendingTargets(data.targets);
     setPendingProfile(data.profile);
   };
 
   const handleFecharWizard = () => {
-    // Fluxo inverso de 2 passos: fecha o wizard, espera animação,
-    // reabre o ResponsiveModal.
-    // fullScreen+slide no iOS leva ~400-450ms — 500ms dá margem segura.
     setWizardOpen(false);
     setWizardTransition(true);
-    setTimeout(() => {
-      setWizardTransition(false);
-    }, 500);
+    setTimeout(() => setWizardTransition(false), 500);
   };
 
   const handleRemoverMeta = async () => {
     if (modo === 'criar') {
-      // Limbo: só apaga local
       hap.tap();
       setPendingTargets(null);
       setPendingProfile(null);
       return;
     }
-
-    // Modo editar: persiste imediatamente
     if (!dietaId) return;
     hap.tap();
     try {
@@ -139,7 +120,7 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
     }
   };
 
-  // ─── Confirmar (criar/salvar) ───────────────────────────────
+  // ─── Confirmar ─────────────────────────────────────────────
 
   const confirmar = async () => {
     if (!podeConfirmar) return;
@@ -148,20 +129,13 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
 
     try {
       if (modo === 'editar' && dietaId) {
-        // Modo editar: só renomeia. Meta foi aplicada/removida diretamente
-        // via setTargets (ações independentes acima).
         await renomear(dietaId, nome.trim());
       } else {
-        // Modo criar: cria a dieta com nome + targets pendentes (se houver)
-        await criar(nome.trim(), pendingTargets ?? undefined);
-
-        // Salva o profile pendente (benefício secundário, não-fatal)
+        const duracao = buildDuracao(duracaoTipo, duracaoQtd);
+        await criar(nome.trim(), duracao, pendingTargets ?? undefined);
         if (pendingProfile) {
-          try {
-            await saveProfile(pendingProfile);
-          } catch (profileErr) {
-            console.warn('[NovaDietaModal] Falha ao salvar perfil:', profileErr);
-          }
+          try { await saveProfile(pendingProfile); }
+          catch (e) { console.warn('[NovaDietaModal] Falha ao salvar perfil:', e); }
         }
       }
       hap.add();
@@ -217,6 +191,56 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
           />
         </View>
 
+        {/* Duração (só modo criar) */}
+        {modo === 'criar' && (
+          <View style={styles.field}>
+            <Text style={styles.label}>Duração</Text>
+            <View style={styles.duracaoRow}>
+              {DURACAO_OPCOES.map(({ tipo, label }) => {
+                const ativo = duracaoTipo === tipo;
+                return (
+                  <Pressable
+                    key={tipo}
+                    onPress={() => {
+                      hap.select();
+                      setDuracaoTipo(tipo);
+                      if (tipo !== 'indefinida') {
+                        setTimeout(() => qtdRef.current?.focus(), 50);
+                      }
+                    }}
+                    style={[styles.duracaoChip, ativo && styles.duracaoChipAtivo]}
+                  >
+                    <Text style={[styles.duracaoChipText, ativo && styles.duracaoChipTextAtivo]}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {duracaoTipo !== 'indefinida' && (
+              <View style={styles.qtdRow}>
+                <TextInput
+                  ref={qtdRef}
+                  value={duracaoQtd}
+                  onChangeText={(v) => {
+                    const num = v.replace(/[^0-9]/g, '');
+                    setDuracaoQtd(num);
+                  }}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  style={styles.qtdInput}
+                  maxLength={3}
+                  selectTextOnFocus
+                />
+                <Text style={styles.qtdSufixo}>
+                  {duracaoTipo === 'semanas' ? 'semana(s)' : 'dia(s)'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Meta nutricional */}
         <View style={styles.field}>
           <Text style={styles.label}>Meta nutricional (opcional)</Text>
@@ -228,7 +252,6 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
         </View>
       </ResponsiveModal>
 
-      {/* Wizard (sobreposto). Modo pré-cálculo (criar) ou aplicar (editar). */}
       <Modal
         visible={wizardOpen}
         animationType="slide"
@@ -253,7 +276,7 @@ export function NovaDietaModal({ visible, onClose, modo = 'criar', dietaId }: Pr
   );
 }
 
-// ─── MetaBlock: componente do bloco de meta ──────────────────
+// ─── MetaBlock ────────────────────────────────────────────────
 
 interface MetaBlockProps {
   targets: DietTargets | null;
@@ -263,7 +286,6 @@ interface MetaBlockProps {
 
 function MetaBlock({ targets, onAbrirWizard, onRemover }: MetaBlockProps) {
   if (!targets) {
-    // Estado vazio: botão de chamada à ação
     return (
       <Button
         variant="secondary"
@@ -275,7 +297,6 @@ function MetaBlock({ targets, onAbrirWizard, onRemover }: MetaBlockProps) {
     );
   }
 
-  // Estado preenchido: resumo + botões
   return (
     <View style={styles.metaCard}>
       <View style={styles.metaHeader}>
@@ -323,6 +344,60 @@ const styles = StyleSheet.create({
     color: colors.text,
     backgroundColor: '#FFFFFF',
   },
+
+  // Duração
+  duracaoRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  duracaoChip: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  duracaoChipAtivo: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
+  },
+  duracaoChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  duracaoChipTextAtivo: {
+    color: colors.primaryText,
+  },
+  qtdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 2,
+  },
+  qtdInput: {
+    width: 72,
+    height: 40,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    backgroundColor: '#FFFFFF',
+    textAlign: 'center',
+  },
+  qtdSufixo: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+
+  // Meta
   metaCard: {
     backgroundColor: colors.primaryLight,
     borderRadius: radii.md,

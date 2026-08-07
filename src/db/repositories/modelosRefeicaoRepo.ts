@@ -87,7 +87,6 @@ export async function renomear(id: string, nome: string): Promise<void> {
 
 export async function excluir(id: string): Promise<void> {
   const db = await getDatabase();
-  // alimentos do modelo removidos via CASCADE
   await db.runAsync(`DELETE FROM modelos_refeicao WHERE id = ?`, [id]);
 }
 
@@ -128,17 +127,6 @@ export async function removerAlimento(
     `UPDATE modelos_refeicao SET atualizada_em = ? WHERE id = ?`,
     [Date.now(), modeloId]
   );
-}
-
-// ─── Contagem de usos (para bloquear exclusão de alimento base) ───
-
-export async function contarUsosAlimento(alimentoId: string): Promise<number> {
-  const db = await getDatabase();
-  const row = await db.getFirstAsync<{ total: number }>(
-    `SELECT COUNT(*) as total FROM modelos_refeicao_alimentos WHERE alimento_id = ?`,
-    [alimentoId]
-  );
-  return row?.total ?? 0;
 }
 
 export async function modelosQueUsamAlimento(

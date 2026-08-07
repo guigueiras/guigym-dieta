@@ -25,18 +25,29 @@ export const CREATE_STATEMENTS: string[] = [
     target_carb_g REAL,
     target_fat_g REAL,
     target_goal TEXT,
-    target_carb_profile TEXT
+    target_carb_profile TEXT,
+    duracao_tipo TEXT NOT NULL DEFAULT 'indefinida',
+    duracao_quantidade INTEGER,
+    duracao_dia_inicio TEXT
   );`,
+
+  `CREATE TABLE IF NOT EXISTS semanas (
+    id TEXT PRIMARY KEY,
+    dieta_id TEXT NOT NULL,
+    numero INTEGER NOT NULL,
+    FOREIGN KEY (dieta_id) REFERENCES dietas(id) ON DELETE CASCADE
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_semanas_dieta ON semanas(dieta_id);`,
 
   `CREATE TABLE IF NOT EXISTS refeicoes (
     id TEXT PRIMARY KEY,
-    dieta_id TEXT NOT NULL,
+    semana_id TEXT NOT NULL,
     dia TEXT NOT NULL CHECK(dia IN ('segunda','terca','quarta','quinta','sexta','sabado','domingo')),
     nome TEXT NOT NULL,
     ordem INTEGER NOT NULL,
-    FOREIGN KEY (dieta_id) REFERENCES dietas(id) ON DELETE CASCADE
+    dia_indice INTEGER,
+    FOREIGN KEY (semana_id) REFERENCES semanas(id) ON DELETE CASCADE
   );`,
-  `CREATE INDEX IF NOT EXISTS idx_refeicoes_dieta_dia ON refeicoes(dieta_id, dia);`,
 
   `CREATE TABLE IF NOT EXISTS alimentos_refeicao (
     id TEXT PRIMARY KEY,
@@ -70,7 +81,8 @@ export const CREATE_STATEMENTS: string[] = [
     weight_kg REAL,
     height_cm REAL,
     activity_level TEXT,
-    atualizada_em INTEGER NOT NULL
+    atualizada_em INTEGER NOT NULL,
+    body_fat_pct REAL
   );`,
 
   `CREATE TABLE IF NOT EXISTS modelos_refeicao (
@@ -88,6 +100,5 @@ export const CREATE_STATEMENTS: string[] = [
     FOREIGN KEY (modelo_id) REFERENCES modelos_refeicao(id) ON DELETE CASCADE,
     FOREIGN KEY (alimento_id) REFERENCES alimentos(id) ON DELETE RESTRICT
   );`,
-
   `CREATE INDEX IF NOT EXISTS idx_mra_modelo ON modelos_refeicao_alimentos(modelo_id);`,
 ];
