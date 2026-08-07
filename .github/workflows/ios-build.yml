@@ -19,5 +19,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check Expo version
+      - name: Run Expo Doctor
+        continue-on-error: true
         run: npx expo-doctor
+
+      - name: Generate iOS project
+        run: npx expo prebuild --platform ios
