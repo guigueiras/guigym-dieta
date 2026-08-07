@@ -25,6 +25,15 @@ jobs:
       - name: Generate iOS project
         run: npx expo prebuild --platform ios
 
+      - name: Show Podfile Properties
+        run: |
+          cat ios/Podfile.properties.json
+
+      - name: Debug Environment
+        run: |
+          printenv | grep RCT
+          printenv | grep EXPO
+
       - name: Install CocoaPods
         run: |
           cd ios

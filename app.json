@@ -13,7 +13,7 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
