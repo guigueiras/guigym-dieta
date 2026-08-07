@@ -29,10 +29,12 @@ jobs:
         run: |
           cat ios/Podfile.properties.json
 
-      - name: Debug Environment
+      - name: Show Podfile
         run: |
-          printenv | grep RCT
-          printenv | grep EXPO
+          cat ios/Podfile
+
+      - name: Debug Environment
+        run: env | sort
 
       - name: Install CocoaPods
         run: |
