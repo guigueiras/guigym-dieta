@@ -25,5 +25,12 @@ jobs:
       - name: Generate iOS project
         run: npx expo prebuild --platform ios
 
-      - name: Verify generated project
-        run: ls -la ios
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+
+      - name: Verify Pods
+        run: |
+          ls -la ios
+          ls -la ios/Pods
