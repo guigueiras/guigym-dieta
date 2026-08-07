@@ -1,0 +1,23 @@
+name: iOS Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify-project:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check Expo version
+        run: npx expo-doctor
