@@ -29,3 +29,15 @@ jobs:
         run: |
           cd ios
           pod install
+
+      - name: Show Xcode Projects
+        run: |
+          cd ios
+          echo "=== Workspace ==="
+          find . -name "*.xcworkspace"
+
+          echo "=== Project ==="
+          find . -name "*.xcodeproj"
+
+          echo "=== Schemes ==="
+          xcodebuild -list
