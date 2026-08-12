@@ -30,14 +30,31 @@ jobs:
           cd ios
           pod install
 
-      - name: Show Xcode Projects
+      - name: Build iOS Archive
         run: |
           cd ios
-          echo "=== Workspace ==="
-          find . -name "*.xcworkspace"
 
-          echo "=== Project ==="
-          find . -name "*.xcodeproj"
+          xcodebuild archive \
+            -workspace GuiGymDieta.xcworkspace \
+            -scheme GuiGymDieta \
+            -configuration Release \
+            -archivePath build/GuiGymDieta.xcarchive \
+            CODE_SIGNING_ALLOWED=NO
 
-          echo "=== Schemes ==="
-          xcodebuild -list
+      - name: Create IPA
+        run: |
+          cd ios
+
+          mkdir Payload
+
+          cp -R build/GuiGymDieta.xcarchive/Products/Applications/GuiGymDieta.app Payload/
+
+          cd Payload
+          zip -r ../GuiGymDieta.ipa .
+          cd ..
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: GuiGymDieta-IPA
+          path: ios/GuiGymDieta.ipa
