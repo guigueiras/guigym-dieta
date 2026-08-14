@@ -177,6 +177,12 @@ const MIGRATIONS: Migration[] = [
   {
     versao: 7,
     up: async (db) => {
+      // Guarda de idempotência: se dietas já tem duracao_tipo, o schema é moderno
+      // (criado pelos CREATE_STATEMENTS atuais) — o rebuild seria destrutivo
+      // porque a tabela nova não preserva as colunas duracao_*.
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(dietas)`);
+      if (cols.some((c) => c.name === 'duracao_tipo')) return;
+
       await db.execAsync(`
         CREATE TABLE dietas_new (
           id TEXT PRIMARY KEY,
@@ -232,6 +238,10 @@ const MIGRATIONS: Migration[] = [
   {
     versao: 9,
     up: async (db) => {
+      // Guarda de idempotência: schema fresh já cria user_profile com body_fat_pct
+      const cols = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(user_profile)`);
+      if (cols.some((c) => c.name === 'body_fat_pct')) return;
+
       await db.execAsync(`
         ALTER TABLE user_profile ADD COLUMN body_fat_pct REAL;
       `);
@@ -378,6 +388,19 @@ const MIGRATIONS: Migration[] = [
     },
   },
 ];
+
+/** Versão de schema que os CREATE_STATEMENTS atuais produzem.
+ *  Derivada da última migration para nunca divergir. */
+export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].versao;
+
+/** Grava schema_version = latest sem rodar migrations.
+ *  Usado em fresh install, onde o schema já nasce na versão final. */
+export async function stampLatestSchemaVersion(db: SQLiteDatabase) {
+  await db.runAsync(
+    `INSERT OR REPLACE INTO meta (chave, valor) VALUES (?, ?)`,
+    ['schema_version', String(LATEST_SCHEMA_VERSION)]
+  );
+}
 
 export async function runMigrations(db: SQLiteDatabase) {
   const row = await db.getFirstAsync<{ valor: string }>(
